@@ -1,0 +1,22 @@
+[project]
+name = "zenodo-deposit"
+version = "0.1.0"
+description = "Zenodo deposit tool"
+readme = "README.md"
+authors = [
+    { name = "Will Fitzgerald", email = "willf@users.noreply.github.com" },
+]
+requires-python = ">=3.13"
+dependencies = [
+    "click>=8.1.7",
+    "pytest>=8.3.4",
+    "requests>=2.32.3",
+    "rich>=13.9.4",
+]
+
+[project.scripts]
+zenodo-deposit = "zenodo_deposit.cli:cli"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
