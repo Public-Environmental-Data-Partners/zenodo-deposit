@@ -1,17 +1,9 @@
 import logging.config
 import click
-import requests
 import json
 import zenodo_deposit.api
 import zenodo_deposit.config
 from zenodo_deposit.api import (
-    create_deposition,
-    deposit_file,
-    add_metadata as add_metadata_api,
-    publish_deposition,
-    update_metadata as update_metadata_api,
-    delete_deposition,
-    get_deposition,
     zenodo_url,
     access_token,
 )

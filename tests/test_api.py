@@ -1,13 +1,11 @@
 import pytest
-import requests
 import os
-from unittest.mock import patch, mock_open
+from unittest.mock import patch
 from zenodo_deposit.api import (
     create_deposition,
     deposit_file,
     add_metadata,
     publish_deposition,
-    upload,
     update_metadata,
     delete_deposition,
     get_deposition,
