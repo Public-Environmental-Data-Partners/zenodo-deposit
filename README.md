@@ -1,6 +1,6 @@
 # Zenodo Deposit
 
-![Python tests](https://github.com/willf/zenodo-deposit/actions/workflows/test.yml/badge.svg)](https://github.com/willf/zenodo-deposit/actions/workflows/test.yml)
+[![Python tests](https://github.com/willf/zenodo-deposit/actions/workflows/test.yml/badge.svg)](https://github.com/willf/zenodo-deposit/actions/workflows/test.yml)
 
 Not ready for prime time!
 
