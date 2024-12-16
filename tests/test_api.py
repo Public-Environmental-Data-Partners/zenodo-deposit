@@ -3,7 +3,7 @@ import os
 from unittest.mock import patch
 from zenodo_deposit.api import (
     create_deposition,
-    deposit_file,
+    add_file,
     add_metadata,
     publish_deposition,
     update_metadata,
@@ -65,7 +65,7 @@ def test_deposit_file(base_url, params, file_response):
         mock_put.return_value.status_code = 200
         mock_put.return_value.json.return_value = file_response
 
-        response = deposit_file(bucket_url, file_path, params)
+        response = add_file(bucket_url, file_path, params)
         assert response == file_response
 
 
