@@ -97,6 +97,6 @@ For example:
 }
 ```
 
-The DOI is in the `.metadata.prereserve_doi.doi` field.
+The DOI is in the `.metadata.doi` field.
 
 ---
