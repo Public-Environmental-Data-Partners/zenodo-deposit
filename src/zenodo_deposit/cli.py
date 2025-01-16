@@ -8,7 +8,6 @@ from zenodo_deposit.api import (
     access_token,
 )
 import os
-import sys
 import logging
 import zenodo_deposit.metadata
 from rich.logging import RichHandler
