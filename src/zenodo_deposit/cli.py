@@ -8,6 +8,7 @@ from zenodo_deposit.api import (
     access_token,
 )
 import os
+import sys
 import logging
 import zenodo_deposit.metadata
 from rich.logging import RichHandler
@@ -37,11 +38,16 @@ def get_unique_dicts(dict_list):
 
 DEFAULT_USE_SANDBOX = True
 
+rich_handler = RichHandler(rich_tracebacks=True)
+rich_handler.console.stderr = (
+    True  # zenodo_deposit emits json to stdout, so we want to keep it clean
+)
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-    handlers=[RichHandler()],
+    handlers=[rich_handler],
 )
+
 logger = logging.getLogger(__name__)
 
 
