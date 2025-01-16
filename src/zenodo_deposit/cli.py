@@ -10,7 +10,6 @@ from zenodo_deposit.api import (
 import os
 import logging
 import zenodo_deposit.metadata
-import sys
 from rich.logging import RichHandler
 
 
