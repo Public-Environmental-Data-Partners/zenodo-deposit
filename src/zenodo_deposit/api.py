@@ -267,7 +267,7 @@ def publish_deposition(base_url: str, deposition_id: int, params: Dict) -> Dict:
 
 
 def upload(
-    file: str,
+    files: List[str],
     metadata: Dict,
     config: Dict,
     name: str = None,
@@ -275,7 +275,7 @@ def upload(
     publish: bool = True,
 ) -> Dict:
     """
-    Upload a file to Zenodo with the given metadata.
+    Upload files to Zenodo with the given metadata.
 
     Args:
         file (str): The path to the file to upload.
@@ -301,8 +301,9 @@ def upload(
     deposition_id = deposition["id"]
     bucket_url = deposition["links"]["bucket"]
 
-    # Step 2: Upload the file
-    add_thing(bucket_url, file, params)
+    # Step 2: Upload the files
+    for file in files:
+        add_thing(bucket_url, file, params)
 
     # Step 3: Add metadata
     add_metadata(base_url, deposition_id, metadata, params)
@@ -360,7 +361,7 @@ def delete_deposition(base_url: str, deposition_id: int, params: Dict) -> Dict:
     return response.json()
 
 
-def get_deposition(base_url: str, deposition_id: int, params: Dict) -> Dict:
+def get_deposition(deposition_id: int, config: Dict, sandbox: bool = True) -> Dict:
     """
     Get the Zenodo deposition.
 
@@ -372,6 +373,13 @@ def get_deposition(base_url: str, deposition_id: int, params: Dict) -> Dict:
     Returns:
         Dict: The response from the Zenodo API.
     """
+    base_url = zenodo_url(sandbox)
+    token = access_token(config, sandbox)
+    if not token:
+        raise ValueError("Access token is missing in the configuration")
+
+    base_url = zenodo_url(sandbox)
+    params = {"access_token": token}
     response = requests.get(
         f"{base_url}/deposit/depositions/{deposition_id}", params=params
     )

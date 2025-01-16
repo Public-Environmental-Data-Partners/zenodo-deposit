@@ -11,6 +11,7 @@ import os
 import logging
 import zenodo_deposit.metadata
 import sys
+from rich.logging import RichHandler
 
 
 def flatten(lists):
@@ -40,7 +41,7 @@ DEFAULT_USE_SANDBOX = True
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-    stream=sys.stderr,
+    handlers=[RichHandler()],
 )
 logger = logging.getLogger(__name__)
 
@@ -91,6 +92,17 @@ def cli(ctx, sandbox, config_file, log_level):
     for key, value in config.items():
         logger.debug(f"Setting {key} to {value}")
         ctx.obj[key] = value
+
+
+@cli.command(help="Retrieve deposition details")
+@click.argument("deposition_id", type=int)
+@click.pass_context
+def retrieve(ctx, deposition_id):
+    logging.info(f"Retrieving details for deposition: {deposition_id}")
+    results = zenodo_deposit.api.get_deposition(
+        deposition_id, config=ctx.obj, sandbox=ctx.obj["SANDBOX"]
+    )
+    print(json.dumps(results))
 
 
 @cli.command(help="Deposit a file")
@@ -169,12 +181,6 @@ def delete(ctx):
     debug(ctx, delete)
 
 
-@cli.command(help="Retrieve the deposition details")
-@click.pass_context
-def retrieve(ctx):
-    debug(ctx, retrieve)
-
-
 @cli.command(help="Update the metadata of the deposition")
 @click.pass_context
 def update_metadata(ctx):
@@ -187,7 +193,7 @@ def add_metadata(ctx):
     debug(ctx, add_metadata)
 
 
-@cli.command(help="Upload a file, with metadata")
+@cli.command(help="Upload one or more files, with metadata, creating a new deposit")
 @click.option("--title", required=False, help="Title of the deposition")
 @click.option("--description", required=False, help="Description of the deposition")
 @click.option(
@@ -228,12 +234,11 @@ def add_metadata(ctx):
     default=True,
     help="Publish the deposition after uploading",
 )
-@click.argument("file", type=click.Path())
+@click.argument("files", type=click.Path(), nargs=-1)
 @click.pass_context
 def upload(
-    ctx, file, title, description, type, keywords, name, affiliation, metadata, publish
+    ctx, files, title, description, type, keywords, name, affiliation, metadata, publish
 ):
-    path = file
     ctx.obj["title"] = title
     ctx.obj["description"] = description
     ctx.obj["upload_type"] = type
@@ -242,7 +247,7 @@ def upload(
     ctx.obj["affiliation"] = affiliation
     token = access_token(ctx.obj, ctx.obj["SANDBOX"])
     logging.info(
-        f"Uploading file: {path} to {zenodo_url(ctx.obj['SANDBOX'])} using token {hide_access_token(token)}"
+        f"Uploading files: {files} to {zenodo_url(ctx.obj['SANDBOX'])} using token {hide_access_token(token)}"
     )
     logging.debug(f"Title: {title}")
     logging.debug(f"Type: {type}")
@@ -279,7 +284,7 @@ def upload(
         raise ValueError("Upload type is required")
     logging.debug(f"Metadata: {metadata_object}")
     results = zenodo_deposit.api.upload(
-        file=path,
+        files=files,
         metadata=metadata_object,
         config=ctx.obj,
         sandbox=ctx.obj["SANDBOX"],
@@ -292,156 +297,19 @@ def upload(
     print(json.dumps(results))
 
 
-# def metadata():
-#     pass
-
-
-# @click.command()
-# def add():
-#     click.echo("Adding metadata to the deposition")
-
-
-# @click.command()
-# def update():
-#     click.echo("Updating metadata of the deposition")
-
-
-# metadata.add_command(add)
-# metadata.add_command(update)
-
-
-# @click.group()
-# def cli():
-#     pass
-
-
-# cli.add_command(file)
-# cli.add_command(metadata)
-
-# @cli.command()
-# @click.option(
-#     "--sandbox",
-#     is_flag=True,
-#     default=DEFAULT_USE_SANDBOX,
-#     help="Use Zenodo sandbox environment",
-# )
-# @click.option("--access-token", required=True, help="Zenodo access token")
-# def create(sandbox, access_token):
-#     base_url = "https://sandbox.zenodo.org/api" if sandbox else "https://zenodo.org/api"
-#     params = {"access_token": access_token}
-#     try:
-#         deposition = create_deposition(base_url, params)
-#         console.print(f"Deposition created with ID: {deposition['id']}")
-#     except requests.exceptions.RequestException as e:
-#         console.print(f"[red]Error creating deposition: {e}[/red]")
-
-
-# @cli.command()
-# @click.option(
-#     "--sandbox",
-#     is_flag=True,
-#     default=DEFAULT_USE_SANDBOX,
-#     help="Use Zenodo sandbox environment",
-# )
-# @click.option("--access-token", required=True, help="Zenodo access token")
-# @click.argument("deposition-id", type=int)
-# def get(sandbox, access_token, deposition_id):
-#     base_url = "https://sandbox.zenodo.org/api" if sandbox else "https://zenodo.org/api"
-#     params = {"access_token": access_token}
-#     try:
-#         deposition = get_deposition(base_url, deposition_id, params)
-#         table = Table(title="Deposition Details")
-#         table.add_column("Field", style="bold")
-#         table.add_column("Value")
-#         for key, value in deposition.items():
-#             table.add_row(key, str(value))
-#         console.print(table)
-#     except requests.exceptions.RequestException as e:
-#         console.print(f"[red]Error getting deposition: {e}[/red]")
-
-
-# @cli.command()
-# @click.option(
-#     "--sandbox",
-#     is_flag=True,
-#     default=DEFAULT_USE_SANDBOX,
-#     help="Use Zenodo sandbox environment",
-# )
-# @click.option("--access-token", required=True, help="Zenodo access token")
-# @click.argument("deposition-id", type=int)
-# def delete(sandbox, access_token, deposition_id):
-#     base_url = "https://sandbox.zenodo.org/api" if sandbox else "https://zenodo.org/api"
-#     params = {"access_token": access_token}
-#     try:
-#         delete_deposition(base_url, deposition_id, params)
-#         console.print(f"Deposition with ID {deposition_id} deleted successfully.")
-#     except requests.exceptions.RequestException as e:
-#         console.print(f"[red]Error deleting deposition: {e}[/red]")
-
-
-# @cli.command()
-# @click.option(
-#     "--sandbox",
-#     is_flag=True,
-#     default=DEFAULT_USE_SANDBOX,
-#     help="Use Zenodo sandbox environment",
-# )
-# @click.option("--access-token", required=True, help="Zenodo access token")
-# @click.argument("deposition-id", type=int)
-# def publish(sandbox, access_token, deposition_id):
-#     base_url = "https://sandbox.zenodo.org/api" if sandbox else "https://zenodo.org/api"
-#     params = {"access_token": access_token}
-#     try:
-#         publish_deposition(base_url, deposition_id, params)
-#         console.print(f"Deposition with ID {deposition_id} published successfully.")
-#     except requests.exceptions.RequestException as e:
-#         console.print(f"[red]Error publishing deposition: {e}[/red]")
-
-
-# @cli.command()
-# @click.option(
-#     "--sandbox",
-#     is_flag=True,
-#     default=DEFAULT_USE_SANDBOX,
-#     help="Use Zenodo sandbox environment",
-# )
-# @click.option("--access-token", required=True, help="Zenodo access token")
-# @click.argument("deposition-id", type=int)
-# @click.argument("metadata", type=str)
-# def add(sandbox, access_token, deposition_id, metadata):
-#     base_url = "https://sandbox.zenodo.org/api" if sandbox else "https://zenodo.org/api"
-#     params = {"access_token": access_token}
-#     metadata_dict = json.loads(metadata)
-#     try:
-#         add_metadata(base_url, deposition_id, metadata_dict, params)
-#         console.print(
-#             f"Metadata added to deposition with ID {deposition_id} successfully."
-#         )
-#     except requests.exceptions.RequestException as e:
-#         console.print(f"[red]Error adding metadata: {e}[/red]")
-
-
-# @cli.command()
-# @click.option(
-#     "--sandbox",
-#     is_flag=True,
-#     default=DEFAULT_USE_SANDBOX,
-#     help="Use Zenodo sandbox environment",
-# )
-# @click.option("--access-token", required=True, help="Zenodo access token")
-# @click.argument("deposition-id", type=int)
-# @click.argument("metadata", type=str)
-# def update(sandbox, access_token, deposition_id, metadata):
-#     base_url = "https://sandbox.zenodo.org/api" if sandbox else "https://zenodo.org/api"
-#     params = {"access_token": access_token}
-#     metadata_dict = json.loads(metadata)
-#     try:
-#         update_metadata(base_url, deposition_id, metadata_dict, params)
-#         console.print(
-#             f"Metadata updated for deposition with ID {deposition_id} successfully."
-#         )
-#     except requests.exceptions.RequestException as e:
-#         console.print(f"[red]Error updating metadata: {e}[/red]")
+@cli.command(
+    help="Create a new version of a deposition, with additional or updated files"
+)
+@click.option(
+    "--publish/--no-publish",
+    default=True,
+    help="Publish the deposition after uploading",
+)
+@click.argument("deposition_id", type=int)
+@click.argument("files", type=click.Path(), nargs=-1)
+@click.pass_context
+def new_version(ctx, deposition_id, files, publish):
+    logger.critical("Not implemented")
 
 
 if __name__ == "__main__":
