@@ -134,5 +134,5 @@ def test_get_deposition(base_url, params, deposition_response):
         mock_get.return_value.status_code = 200
         mock_get.return_value.json.return_value = deposition_response
 
-        response = get_deposition(base_url, deposition_id, params)
+        response = get_deposition(deposition_id, params)
         assert response == deposition_response
