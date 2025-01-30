@@ -25,8 +25,8 @@ def base_url():
 @pytest.fixture
 def params():
     return {
-        "ZENODO_SANDBOX_ACCESS_TOKEN": "test_access_token",
-        "ZENODO_ACCESS_TOKEN": "test_access_token",
+        "ZENODO_SANDBOX_ACCESS_TOKEN": "test_access_token_sandbox",
+        "ZENODO_ACCESS_TOKEN": "test_access_token_production",
     }
 
 
