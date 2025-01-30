@@ -24,7 +24,10 @@ def base_url():
 
 @pytest.fixture
 def params():
-    return {"access_token": "test_access_token"}
+    return {
+        "ZENODO_SANDBOX_ACCESS_TOKEN": "test_access_token",
+        "ZENODO_ACCESS_TOKEN": "test_access_token",
+    }
 
 
 @pytest.fixture
@@ -133,6 +136,5 @@ def test_get_deposition(base_url, params, deposition_response):
     with patch("requests.get") as mock_get:
         mock_get.return_value.status_code = 200
         mock_get.return_value.json.return_value = deposition_response
-
         response = get_deposition(deposition_id, params)
         assert response == deposition_response
