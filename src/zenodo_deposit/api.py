@@ -204,7 +204,9 @@ def add_zipped_directory(
     return result
 
 
-def add_thing(bucket_url: str, thing: str, params: Dict, name: str = None) -> Dict:
+def add_thing(
+    bucket_url: str, thing: str, params: Dict, name: str = None, zip: bool = False
+) -> Dict:
     """
     Upload a single file or url to the Zenodo deposition bucket.
     """
@@ -212,7 +214,14 @@ def add_thing(bucket_url: str, thing: str, params: Dict, name: str = None) -> Di
     if valid_url(thing):
         return add_url(bucket_url, thing, params, name)
     if Path(thing).is_dir():
-        return add_directory(bucket_url, thing, params)
+        if zip:
+            return add_zipped_directory(bucket_url, thing, params, name)
+        else:
+            return add_directory(
+                bucket_url,
+                thing,
+                params,
+            )
     if Path(thing).is_file():
         return add_file(bucket_url, thing, params, name)
     raise ValueError(
@@ -267,24 +276,26 @@ def publish_deposition(base_url: str, deposition_id: int, params: Dict) -> Dict:
 
 
 def upload(
-    files: List[str],
+    paths: List[str],
     metadata: Dict,
     config: Dict,
     name: str = None,
     sandbox: bool = True,
-    publish: bool = True,
+    publish: bool = False,
+    zip: bool = False,
 ) -> Dict:
     """
     Upload files to Zenodo with the given metadata.
 
     Args:
-        file (str): The path to the file to upload.
+        paths (str): The paths of the files to upload.
         metadata (Dict): The metadata for the upload.
         name (str): The name of the file to save as, defaults to the file name. Only
         works well if it is a single file or URL
         config (Dict): The configuration containing the access token.
         sandbox (bool): Whether to use the Zenodo sandbox or production URL.
         publish (bool): Whether to publish the deposition after uploading.
+        zip (bool): Whether to zip directories before uploading.
 
     Returns:
         Dict: The response from the Zenodo API.
@@ -301,13 +312,14 @@ def upload(
     deposition_id = deposition["id"]
     bucket_url = deposition["links"]["bucket"]
 
-    # Step 2: Upload the files
-    for file in files:
-        add_thing(bucket_url, file, params)
-
-    # Step 3: Add metadata
+    # Step 2: Add metadata (in case file upload fails)
     add_metadata(base_url, deposition_id, metadata, params)
 
+    # Step 3: Upload the files
+    for path in paths:
+        add_thing(bucket_url, path, params, zip)
+
+    # Step 4: Publish the deposition, possibly
     if publish:
         # Step 4: Publish the deposition
         return publish_deposition(base_url, deposition_id, params)

@@ -50,7 +50,8 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
-@click.group()
+@click.group(context_settings={"show_default": True})
+@click.version_option()
 @click.option(
     "--sandbox/--production",
     "--dev/--prod",
@@ -168,9 +169,28 @@ def debug(ctx, func):
 
 
 @cli.command(help="Create a new deposition, without uploading a file")
+@click.option(
+    "--metadata",
+    default=None,
+    help="Path to the metadata file",
+    type=click.Path(),
+)
 @click.pass_context
-def create(ctx):
-    debug(ctx, create)
+def create(ctx, metadata):
+    sandbox = ctx.obj["SANDBOX"]
+    base_url = zenodo_url(sandbox)
+    if metadata:
+        metadata_object = zenodo_deposit.metadata.metadata_from_toml(metadata, ctx.obj)
+        ctx.obj["metadata"] = metadata_object
+    results = zenodo_deposit.api.create_deposition(
+        base_url,
+        {
+            "metadata": metadata_object,
+            "config": ctx.obj,
+        },
+    )
+    logging.info(f"Deposition created with ID: {results['id']}")
+    print(json.dumps(results))
 
 
 @cli.command(help="Publish the deposition")
@@ -197,7 +217,9 @@ def add_metadata(ctx):
     debug(ctx, add_metadata)
 
 
-@cli.command(help="Upload one or more files, with metadata, creating a new deposit")
+@cli.command(
+    help="Upload one or more files, with metadata, creating a new deposit",
+)
 @click.option("--title", required=False, help="Title of the deposition")
 @click.option("--description", required=False, help="Description of the deposition")
 @click.option(
@@ -205,6 +227,7 @@ def add_metadata(ctx):
     required=False,
     help="Upload type",
     type=click.Choice(zenodo_deposit.metadata.upload_types),
+    default="dataset",
 )
 @click.option(
     "--keywords",
@@ -214,41 +237,29 @@ def add_metadata(ctx):
     multiple=True,
 )
 @click.option(
-    "--name",
-    required=False,
-    type=str,
-    help="Name of the depositor in last,first format",
-    default=None,
-)
-@click.option(
-    "--affiliation",
-    required=False,
-    type=str,
-    help="Affiliation of the depositor",
-    default=None,
-)
-@click.option(
     "--metadata",
-    default=None,
+    required=True,
     help="Path to the metadata file",
     type=click.Path(),
 )
 @click.option(
     "--publish/--no-publish",
-    default=True,
+    default=False,
     help="Publish the deposition after uploading",
+)
+@click.option(
+    "--zip/--no-zip",
+    default=False,
+    help="Zip any directory before uploading",
+    type=bool,
 )
 @click.argument("files", type=click.Path(), nargs=-1)
 @click.pass_context
-def upload(
-    ctx, files, title, description, type, keywords, name, affiliation, metadata, publish
-):
+def upload(ctx, files, title, description, type, keywords, metadata, publish, zip):
     ctx.obj["title"] = title
     ctx.obj["description"] = description
     ctx.obj["upload_type"] = type
     ctx.obj["keywords"] = [x.strip() for x in flatten([k.split(",") for k in keywords])]
-    ctx.obj["name"] = name
-    ctx.obj["affiliation"] = affiliation
     token = access_token(ctx.obj, ctx.obj["SANDBOX"])
     logging.info(
         f"Uploading files: {files} to {zenodo_url(ctx.obj['SANDBOX'])} using token {hide_access_token(token)}"
@@ -272,12 +283,6 @@ def upload(
     if keywords:
         current_keywords = metadata_object.get("keywords", [])
         metadata_object["keywords"] = list(current_keywords) + list(keywords)
-    if name or affiliation:
-        current_creators = metadata_object.get("creators", [])
-        new_creator = {"name": name, "affiliation": affiliation}
-        new_creators = current_creators + [new_creator]
-        # make sure the creators are unique
-        metadata_object["creators"] = get_unique_dicts(new_creators)
 
     # validate
     if not metadata_object.get("title"):
@@ -288,11 +293,12 @@ def upload(
         raise ValueError("Upload type is required")
     logging.debug(f"Metadata: {metadata_object}")
     results = zenodo_deposit.api.upload(
-        files=files,
+        paths=files,
         metadata=metadata_object,
         config=ctx.obj,
         sandbox=ctx.obj["SANDBOX"],
         publish=publish,
+        zip=zip,
     )
     if publish:
         logging.info(f"Deposition published with ID: {results['id']}")

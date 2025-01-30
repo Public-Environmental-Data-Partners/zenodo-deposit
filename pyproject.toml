@@ -17,6 +17,7 @@ dependencies = [
 
 [project.scripts]
 zenodo-deposit = "zenodo_deposit.cli:cli"
+zd = "zenodo_deposit.cli:cli"
 
 [build-system]
 requires = ["hatchling"]
