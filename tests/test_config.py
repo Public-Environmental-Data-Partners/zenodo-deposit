@@ -3,7 +3,6 @@ import os
 from unittest.mock import patch, mock_open
 from zenodo_deposit.config import (
     zenodo_config,
-    validate_zenodo_config,
     config_section,
 )
 
