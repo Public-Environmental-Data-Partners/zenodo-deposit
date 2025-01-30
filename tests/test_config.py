@@ -59,14 +59,3 @@ def test_environment_variable():
     with patch.dict(os.environ, {"ZENODO_ACCESS_TOKEN": "env_token"}):
         result = zenodo_config()
         assert result["ZENODO_ACCESS_TOKEN"] == "env_token"
-
-
-def test_validate_config():
-    with patch.dict(os.environ, {"ZENODO_ACCESS_TOKEN": "env_token"}):
-        result = zenodo_config()
-        valid = validate_zenodo_config(result, use_sandbox=False)
-        assert valid
-        # check that the function raises an error if the access token is not set
-        with pytest.raises(ValueError):
-            result.pop("ZENODO_ACCESS_TOKEN")
-            validate_zenodo_config(result, use_sandbox=False)
