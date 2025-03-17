@@ -1,6 +1,6 @@
 # zenodo-deposit: A command line interface to making file deposits to Zenoodo
 
-[![Build status](https://img.shields.io/github/actions/workflow/status/willf/zenodo-deposit/main.yml?branch=main)](https://github.com/willf/zenodo-deposit/actions/workflows/main.yml?query=branch%3Amain)
+[![Python tests](https://github.com/willf/zenodo-deposit/actions/workflows/test.yml/badge.svg)](https://github.com/willf/zenodo-deposit/actions/workflows/test.yml)
 [![Commit activity](https://img.shields.io/github/commit-activity/m/willf/zenodo-deposit)](https://img.shields.io/github/commit-activity/m/willf/zenodo-deposit)
 [![License](https://img.shields.io/github/license/willf/zenodo-deposit)](https://img.shields.io/github/license/willf/zenodo-deposit)
 
