@@ -1,6 +1,6 @@
 [project]
 name = "zenodo-deposit"
-version = "0.1.0"
+version = "0.1.1"
 description = "Zenodo deposit tool"
 readme = "README.md"
 authors = [
@@ -16,9 +16,16 @@ dependencies = [
 ]
 
 [project.scripts]
-zenodo-deposit = "zenodo_deposit.cli:cli"
 zd = "zenodo_deposit.cli:cli"
 
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
+
+[dependency-groups]
+dev = [
+    "mkdocs>=1.6.1",
+    "mkdocs-material>=9.6.9",
+    "mkdocstrings[python]>=0.29.0",
+    "pre-commit>=4.1.0",
+]
