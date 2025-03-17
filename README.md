@@ -1,4 +1,4 @@
-# zenodo-deposit: A command line interface to making file deposits to Zenoodo
+# zenodo-deposit: A command line interface to making file deposits to Zenodo
 
 [![Python tests](https://github.com/willf/zenodo-deposit/actions/workflows/test.yml/badge.svg)](https://github.com/willf/zenodo-deposit/actions/workflows/test.yml)
 [![Commit activity](https://img.shields.io/github/commit-activity/m/willf/zenodo-deposit)](https://img.shields.io/github/commit-activity/m/willf/zenodo-deposit)
