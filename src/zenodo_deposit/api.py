@@ -397,3 +397,54 @@ def get_deposition(deposition_id: int, config: Dict, sandbox: bool = True) -> Di
     )
     response.raise_for_status()
     return response.json()
+
+
+def search(
+    query: str,
+    size: int = 25,
+    status: str = None,
+    sort: str = None,
+    page: int = 1,
+    config: Dict = None,
+    sandbox: bool = True,
+) -> Dict:
+    """
+    Search for depositions on Zenodo.
+
+    Args:
+        query (str): The search query.
+        config (Dict): The configuration containing the access token.
+        sandbox (bool): Whether to use the Zenodo sandbox or production URL.
+
+    Returns:
+        Dict: The response from the Zenodo API.
+    """
+    base_url = zenodo_url(sandbox)
+    token = access_token(config, sandbox)
+    if not token:
+        raise ValueError("Access token is missing in the configuration")
+
+    params = {"access_token": token, "q": query}
+    if size:
+        params["size"] = size
+    if status:
+        acceptable_statuses = ["draft", "published", "all"]
+        if status not in acceptable_statuses:
+            raise ValueError(
+                "Invalid status value. Must be one of: "
+                + ", ".join(acceptable_statuses)
+            )
+        if status in ["draft", "published"]:
+            params["status"] = status
+    if sort:
+        acceptable_sorts = ["bestmatch", "mostrecent", "-bestmatch", "-mostrecent"]
+        if sort not in acceptable_sorts:
+            raise ValueError(
+                "Invalid sort value. Must be one of: " + ", ".join(acceptable_sorts)
+            )
+        params["sort"] = sort
+    if page:
+        params["page"] = page
+    response = requests.get(f"{base_url}/records", params=params)
+    response.raise_for_status()
+    return response.json()

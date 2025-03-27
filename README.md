@@ -49,15 +49,11 @@ Options:
   --help                          Show this message and exit.
 
 Commands:
-  add-metadata     Add metadata to the deposition
-  create           Create a new deposition, without uploading a file
-  delete           Delete the deposition
-  deposit          Deposit a file
-  new-version      Create a new version of a deposition
-  publish          Publish the deposition
-  retrieve         Retrieve deposition details
-  update-metadata  Update the metadata of the deposition
-  upload           Upload one or more files, with metadata
+  create    Create a new deposition, without uploading a file
+  deposit   Deposit a file
+  retrieve  Retrieve deposition details
+  search    Search for depositions
+  upload    Upload one or more files, with metadata, creating a new deposit
 
 ```
 

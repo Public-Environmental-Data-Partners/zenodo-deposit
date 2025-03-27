@@ -193,28 +193,29 @@ def create(ctx, metadata):
     print(json.dumps(results))
 
 
-@cli.command(help="Publish the deposition")
-@click.pass_context
-def publish(ctx):
-    debug(ctx, publish)
+# TODO: Implement the following command
+# @cli.command(help="Publish the deposition")
+# @click.pass_context
+# def publish(ctx):
+#     debug(ctx, publish)
 
+# TODO: Implement the following command
+# @cli.command(help="Delete the deposition")
+# @click.pass_context
+# def delete(ctx):
+#     debug(ctx, delete)
 
-@cli.command(help="Delete the deposition")
-@click.pass_context
-def delete(ctx):
-    debug(ctx, delete)
+# TODO: Implement the following command
+# @cli.command(help="Update the metadata of the deposition")
+# @click.pass_context
+# def update_metadata(ctx):
+#     debug(ctx, update_metadata)
 
-
-@cli.command(help="Update the metadata of the deposition")
-@click.pass_context
-def update_metadata(ctx):
-    debug(ctx, update_metadata)
-
-
-@cli.command(help="Add metadata to the deposition")
-@click.pass_context
-def add_metadata(ctx):
-    debug(ctx, add_metadata)
+# TODO: Implement the following command
+# @cli.command(help="Add metadata to the deposition")
+# @click.pass_context
+# def add_metadata(ctx):
+#     debug(ctx, add_metadata)
 
 
 @cli.command(
@@ -307,19 +308,42 @@ def upload(ctx, files, title, description, type, keywords, metadata, publish, zi
     print(json.dumps(results))
 
 
-@cli.command(
-    help="Create a new version of a deposition, with additional or updated files"
-)
+# TODO: Implement the following command
+# @cli.command(
+#     help="Create a new version of a deposition, with additional or updated files"
+# )
+# @click.option(
+#     "--publish/--no-publish",
+#     default=True,
+#     help="Publish the deposition after uploading",
+# )
+# @click.argument("deposition_id", type=int)
+# @click.argument("files", type=click.Path(), nargs=-1)
+# @click.pass_context
+# def new_version(ctx, deposition_id, files, publish):
+#     logger.critical("Not implemented")
+
+
+@cli.command(help="Search for depositions")
+@click.option("--query", required=True, help="Search query")
+@click.option("--size", default=10, help="Number of results to return")
+@click.option("--page", default=1, help="Page number")
+@click.option("--sort", default="mostrecent", help="Sort order")
 @click.option(
-    "--publish/--no-publish",
-    default=True,
-    help="Publish the deposition after uploading",
+    "--status", default="all", help="Limit to depositions with a specific status"
 )
-@click.argument("deposition_id", type=int)
-@click.argument("files", type=click.Path(), nargs=-1)
 @click.pass_context
-def new_version(ctx, deposition_id, files, publish):
-    logger.critical("Not implemented")
+def search(ctx, query, size, page, sort, status):
+    results = zenodo_deposit.api.search(
+        query=query,
+        size=size,
+        page=page,
+        sort=sort,
+        status=status,
+        config=ctx.obj,
+        sandbox=ctx.obj["SANDBOX"],
+    )
+    print(json.dumps(results))
 
 
 if __name__ == "__main__":
