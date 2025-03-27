@@ -6,7 +6,7 @@
 
 A command line interface to making file deposits to Zenoodo
 
-- **Github repository**: <https://github.com/willf/zenodo-deposit/>
+- **Github repository**: <https://github.com/Public-Environmental-Data-Partners/zenodo-deposit/>
 - **Documentation** <https://pypi.org/project/zenodo-deposit/>
 
 ## Understanding the use case
