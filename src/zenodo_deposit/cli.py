@@ -224,6 +224,13 @@ def create(ctx, metadata):
 @click.option("--title", required=False, help="Title of the deposition")
 @click.option("--description", required=False, help="Description of the deposition")
 @click.option(
+    "--variable",
+    "-v",
+    required=False,
+    help="Variables for metadata, format: key:value",
+    multiple=True,
+)
+@click.option(
     "--type",
     required=False,
     help="Upload type",
@@ -239,6 +246,7 @@ def create(ctx, metadata):
 )
 @click.option(
     "--metadata",
+    "-m",
     required=True,
     help="Path to the metadata file",
     type=click.Path(),
@@ -256,11 +264,16 @@ def create(ctx, metadata):
 )
 @click.argument("files", type=click.Path(), nargs=-1)
 @click.pass_context
-def upload(ctx, files, title, description, type, keywords, metadata, publish, zip):
+def upload(
+    ctx, files, title, description, variable, type, keywords, metadata, publish, zip
+):
     ctx.obj["title"] = title
     ctx.obj["description"] = description
     ctx.obj["upload_type"] = type
     ctx.obj["keywords"] = [x.strip() for x in flatten([k.split(",") for k in keywords])]
+    for var in variable:
+        key, value = var.split(":")
+        ctx.obj[key] = value
     token = access_token(ctx.obj, ctx.obj["SANDBOX"])
     logging.info(
         f"Uploading files: {files} to {zenodo_url(ctx.obj['SANDBOX'])} using token {hide_access_token(token)}"
