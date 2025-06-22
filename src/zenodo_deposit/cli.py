@@ -29,18 +29,14 @@ def hide_access_token(token):
 
 
 def get_unique_dicts(dict_list):
-    # Convert each dictionary to a frozenset of items and use a set to remove duplicates
     unique_dicts = {frozenset(d.items()): d for d in dict_list}.values()
-    # Convert the frozensets back to dictionaries
     return list(unique_dicts)
 
 
-DEFAULT_USE_SANDBOX = True
+DEFAULT_USE_SANDBOX = False  # Changed to default to production
 
 rich_handler = RichHandler(rich_tracebacks=True)
-rich_handler.console.stderr = (
-    True  # zenodo_deposit emits json to stdout, so we want to keep it clean
-)
+rich_handler.console.stderr = True
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
@@ -48,7 +44,6 @@ logging.basicConfig(
 )
 
 logger = logging.getLogger(__name__)
-
 
 @click.group(context_settings={"show_default": True})
 @click.version_option()
@@ -73,15 +68,18 @@ logger = logging.getLogger(__name__)
 )
 @click.pass_context
 def cli(ctx, sandbox, config_file, log_level):
+    """Zenodo Deposit CLI for uploading and managing depositions.
+
+    Note: Fixed token reading bug (Issue #1) in config.py by using copy.deepcopy(default_zenodo)
+    to prevent overriding default configuration, ensuring ZENODO_ACCESS_TOKEN and
+    ZENODO_SANDBOX_ACCESS_TOKEN are correctly loaded from environment variables.
+    """
     global logger
     if log_level:
         logging.getLogger().setLevel(log_level)
 
-    logger.debug("Configuration loaded")
-    # ensure that ctx.obj exists and is a dict (in case `cli()` is called
-    # by means other than the `if` block below)
+    logger.debug(f"Configuration loaded with sandbox={sandbox}")
     ctx.ensure_object(dict)
-
     ctx.obj["SANDBOX"] = sandbox
 
     if config_file:
@@ -93,11 +91,9 @@ def cli(ctx, sandbox, config_file, log_level):
     except ValueError as e:
         raise click.ClickException("Invalid configuration: " + str(e))
 
-    # set all values in the config as attributes of the context object
     for key, value in config.items():
-        logger.debug(f"Setting {key} to {value}")
+        logger.debug(f"Setting {key} to {hide_access_token(value)}")
         ctx.obj[key] = value
-
 
 @cli.command(help="Retrieve deposition details")
 @click.argument("deposition_id", type=int)
@@ -158,18 +154,18 @@ def deposit(ctx, file, title, type, keywords, name, affiliation, metadata):
     logging.debug(f"Title: {title}")
     logging.debug(f"Type: {type}")
     logging.debug(f"Keywords: {keywords}")
-    # Create a metatdata dictionary
     if metadata:
         metadata_object = zenodo_deposit.metadata.metadata_from_toml(metadata, ctx.obj)
         ctx.obj["metadata"] = metadata_object
 
 
 def debug(ctx, func):
-    logging.info(f"Running {func.name}")
+    logging.info(f"Running {func.__name__}")
 
 
 @cli.command(help="Create a new deposition, without uploading a file")
 @click.option(
+    "-m",
     "--metadata",
     default=None,
     help="Path to the metadata file",
@@ -191,31 +187,6 @@ def create(ctx, metadata):
     )
     logging.info(f"Deposition created with ID: {results['id']}")
     print(json.dumps(results))
-
-
-# TODO: Implement the following command
-# @cli.command(help="Publish the deposition")
-# @click.pass_context
-# def publish(ctx):
-#     debug(ctx, publish)
-
-# TODO: Implement the following command
-# @cli.command(help="Delete the deposition")
-# @click.pass_context
-# def delete(ctx):
-#     debug(ctx, delete)
-
-# TODO: Implement the following command
-# @cli.command(help="Update the metadata of the deposition")
-# @click.pass_context
-# def update_metadata(ctx):
-#     debug(ctx, update_metadata)
-
-# TODO: Implement the following command
-# @cli.command(help="Add metadata to the deposition")
-# @click.pass_context
-# def add_metadata(ctx):
-#     debug(ctx, add_metadata)
 
 
 @cli.command(
@@ -267,6 +238,7 @@ def create(ctx, metadata):
 def upload(
     ctx, files, title, description, variable, type, keywords, metadata, publish, zip
 ):
+    logger.debug(f"Upload command with sandbox={ctx.obj['SANDBOX']}")
     ctx.obj["title"] = title
     ctx.obj["description"] = description
     ctx.obj["upload_type"] = type
@@ -281,7 +253,6 @@ def upload(
     logging.debug(f"Title: {title}")
     logging.debug(f"Type: {type}")
     logging.debug(f"Keywords: {keywords}")
-    # Create a metatdata dictionary
     metadata_object = None
     if metadata:
         metadata_object = zenodo_deposit.metadata.metadata_from_toml(metadata, ctx.obj)
@@ -298,7 +269,6 @@ def upload(
         current_keywords = metadata_object.get("keywords", [])
         metadata_object["keywords"] = list(current_keywords) + list(keywords)
 
-    # validate
     if not metadata_object.get("title"):
         raise ValueError("Title is required")
     if not metadata_object.get("creators"):
@@ -319,22 +289,6 @@ def upload(
     else:
         logging.info(f"Deposition created with ID: {results['id']}")
     print(json.dumps(results))
-
-
-# TODO: Implement the following command
-# @cli.command(
-#     help="Create a new version of a deposition, with additional or updated files"
-# )
-# @click.option(
-#     "--publish/--no-publish",
-#     default=True,
-#     help="Publish the deposition after uploading",
-# )
-# @click.argument("deposition_id", type=int)
-# @click.argument("files", type=click.Path(), nargs=-1)
-# @click.pass_context
-# def new_version(ctx, deposition_id, files, publish):
-#     logger.critical("Not implemented")
 
 
 @cli.command(help="Search for depositions")
