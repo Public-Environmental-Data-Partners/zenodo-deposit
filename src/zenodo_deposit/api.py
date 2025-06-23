@@ -11,8 +11,19 @@ import tempfile
 logger = logging.getLogger(__name__)
 
 def valid_url(url: str) -> bool:
-    parsed = urlparse(url)
-    return all([parsed.scheme, parsed.netloc])
+    try:
+        parsed = urlparse(url)
+        if not all([parsed.scheme, parsed.netloc]):
+            return False
+        # Basic scheme validation
+        if parsed.scheme not in ["http", "https", "ftp"]:
+            return False
+        # Test connectivity (optional, can be slow)
+        requests.head(url, timeout=5).raise_for_status()
+        return True
+    except (requests.RequestException, ValueError):
+        logger.debug(f"Invalid URL: {url}")
+        return False
 
 def file_list(path: str) -> List[Path]:
     path = Path(path)
@@ -32,9 +43,19 @@ def access_token(config: Dict, sandbox: bool = True) -> str:
 
 def create_deposition(base_url: str, params: Dict) -> Dict:
     headers = {"Content-Type": "application/json"}
+    metadata = params.get("metadata", {})
+    config = params.get("config", {})
+    token = params.get("access_token") or access_token(config, config.get("SANDBOX", False))
+    if not token:
+        raise ValueError("Access token is missing in the configuration")
+    logger.debug(f"Creating deposition with token {token[:4] + '*' * (len(token) - 4)}")
     response = requests.post(
-        f"{base_url}/deposit/depositions", params=params, json={}, headers=headers
+        f"{base_url}/deposit/depositions",
+        params={"access_token": token},
+        json={"metadata": metadata} if metadata else {},
+        headers=headers
     )
+    logger.debug(f"Response: {response.status_code} {response.text}")
     if response.status_code != 201:
         response.raise_for_status()
     return response.json()
@@ -66,9 +87,15 @@ def add_url(bucket_url: str, url: str, params: Dict, name: str = None) -> Dict:
 def add_file(bucket_url: str, file_path: Path, params: Dict, name: str = None) -> Dict:
     logger.info(f"Uploading file {file_path} to Zenodo")
     file_path = Path(file_path)
-    filename = file_path.name if not name else name
+    filename = name or file_path.name
+    # Stream file in chunks
     with open(file_path, "rb") as fp:
-        response = requests.put(f"{bucket_url}/{filename}", data=fp, params=params)
+        response = requests.put(
+            f"{bucket_url}/{filename}",
+            data=iter(lambda: fp.read(8192), b""),  # 8KB chunks
+            params=params,
+            headers={"Content-Type": "application/octet-stream"}
+        )
     response.raise_for_status()
     return response.json()
 
@@ -77,9 +104,9 @@ def add_directory(bucket_url: str, directory: str, params: Dict, names=[]) -> Di
     files = file_list(directory)
     if len(names) < len(files):
         names += [None] * (len(files) - len(names))
-
-    if len(files) > 100:
-        logger.warning("Uploading more than 100 files. Zipping the directory.")
+    max_files = 100  # Configurable threshold
+    if len(files) > max_files:
+        logger.warning(f"Directory contains {len(files)} files, exceeding {max_files}. Zipping.")
         return add_zipped_directory(bucket_url, directory, params)
     responses = []
     for file, name in zip(files, names):
@@ -109,22 +136,23 @@ def add_thing(
     bucket_url: str, thing: str, params: Dict, name: str = None, zip: bool = False
 ) -> Dict:
     logger.debug(f"Uploading {thing} to Zenodo")
-    if valid_url(thing):
-        return add_url(bucket_url, thing, params, name)
-    if Path(thing).is_dir():
-        if zip:
-            return add_zipped_directory(bucket_url, thing, params, name)
-        else:
-            return add_directory(
-                bucket_url,
-                thing,
-                params,
-            )
-    if Path(thing).is_file():
-        return add_file(bucket_url, thing, params, name)
-    raise ValueError(
-        f"Do not know how to deposit {thing}. Must be a file, URL, or directory."
-    )
+    try:
+        if valid_url(thing):
+            return add_url(bucket_url, thing, params, name)
+        path = Path(thing)
+        if path.is_dir():
+            if zip:
+                return add_zipped_directory(bucket_url, thing, params, name)
+            else:
+                return add_directory(bucket_url, thing, params)
+        if path.is_file():
+            return add_file(bucket_url, path, params, name)
+        raise ValueError(
+            f"Do not know how to deposit {thing}. Must be a valid file, URL, or directory."
+        )
+    except (OSError, ValueError) as e:
+        logger.error(f"Invalid path or URL {thing}: {str(e)}")
+        raise ValueError(f"Cannot process {thing}: {str(e)}")
 
 def add_metadata(
     base_url: str, deposition_id: int, metadata: Dict, params: Dict

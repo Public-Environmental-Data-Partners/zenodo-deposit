@@ -12,7 +12,6 @@ import logging
 import zenodo_deposit.metadata
 from rich.logging import RichHandler
 
-
 def flatten(lists):
     def _flatten(lyst):
         for el in lyst:
@@ -20,18 +19,14 @@ def flatten(lists):
                 yield from _flatten(el)
             else:
                 yield el
-
     return list(_flatten(lists))
-
 
 def hide_access_token(token):
     return token[:4] + "*" * (len(token) - 4)
 
-
 def get_unique_dicts(dict_list):
     unique_dicts = {frozenset(d.items()): d for d in dict_list}.values()
     return list(unique_dicts)
-
 
 DEFAULT_USE_SANDBOX = False  # Changed to default to production
 
@@ -105,7 +100,6 @@ def retrieve(ctx, deposition_id):
     )
     print(json.dumps(results))
 
-
 @cli.command(help="Deposit a file")
 @click.option("--title", required=False, help="Title of the deposition")
 @click.option(
@@ -158,11 +152,6 @@ def deposit(ctx, file, title, type, keywords, name, affiliation, metadata):
         metadata_object = zenodo_deposit.metadata.metadata_from_toml(metadata, ctx.obj)
         ctx.obj["metadata"] = metadata_object
 
-
-def debug(ctx, func):
-    logging.info(f"Running {func.__name__}")
-
-
 @cli.command(help="Create a new deposition, without uploading a file")
 @click.option(
     "-m",
@@ -187,7 +176,6 @@ def create(ctx, metadata):
     )
     logging.info(f"Deposition created with ID: {results['id']}")
     print(json.dumps(results))
-
 
 @cli.command(
     help="Upload one or more files, with metadata, creating a new deposit",
@@ -290,7 +278,114 @@ def upload(
         logging.info(f"Deposition created with ID: {results['id']}")
     print(json.dumps(results))
 
+@cli.command(help="Publish an existing deposition")
+@click.argument("deposition_id", type=int)
+@click.pass_context
+def publish(ctx, deposition_id):
+    """Publish a Zenodo deposition by ID."""
+    logging.info(f"Publishing deposition: {deposition_id}")
+    base_url = zenodo_url(ctx.obj["SANDBOX"])
+    token = access_token(ctx.obj, ctx.obj["SANDBOX"])
+    if not token:
+        raise click.ClickException("Access token is missing in the configuration")
+    params = {"access_token": token}
+    results = zenodo_deposit.api.publish_deposition(base_url, deposition_id, params)
+    logging.info(f"Deposition published with ID: {deposition_id}")
+    print(json.dumps(results))
 
+@cli.command(help="Delete a draft deposition")
+@click.argument("deposition_id", type=int)
+@click.pass_context
+def delete(ctx, deposition_id):
+    """Delete a Zenodo draft deposition by ID. Published depositions cannot be deleted."""
+    logging.info(f"Deleting deposition: {deposition_id}")
+    base_url = zenodo_url(ctx.obj["SANDBOX"])
+    token = access_token(ctx.obj, ctx.obj["SANDBOX"])
+    if not token:
+        raise click.ClickException("Access token is missing in the configuration")
+    params = {"access_token": token}
+    results = zenodo_deposit.api.delete_deposition(base_url, deposition_id, params)
+    logging.info(f"Deposition deleted with ID: {deposition_id}")
+    print(json.dumps(results))
+
+@cli.command("update_metadata", help="Update metadata for an existing deposition")
+@click.argument("deposition_id", type=int)
+@click.option(
+    "-m",
+    "--metadata",
+    required=True,
+    help="Path to the metadata file",
+    type=click.Path(exists=True),
+)
+@click.pass_context
+def update_metadata(ctx, deposition_id, metadata):
+    """Update metadata for a Zenodo deposition by ID."""
+    logging.info(f"Updating metadata for deposition: {deposition_id}")
+    base_url = zenodo_url(ctx.obj["SANDBOX"])
+    token = access_token(ctx.obj, ctx.obj["SANDBOX"])
+    if not token:
+        raise click.ClickException("Access token is missing in the configuration")
+    params = {"access_token": token}
+    metadata_object = zenodo_deposit.metadata.metadata_from_toml(metadata, ctx.obj)
+    if not metadata_object.get("title"):
+        raise click.ClickException("Metadata must include a title")
+    if not metadata_object.get("creators"):
+        raise click.ClickException("Metadata must include creators")
+    results = zenodo_deposit.api.update_metadata(base_url, deposition_id, metadata_object, params)
+    logging.info(f"Metadata updated for deposition ID: {deposition_id}")
+    print(json.dumps(results))
+
+@cli.command("add_metadata", help="Add metadata to an existing deposition (alias for update_metadata)")
+@click.argument("deposition_id", type=int)
+@click.option(
+    "-m",
+    "--metadata",
+    required=True,
+    help="Path to the metadata file",
+    type=click.Path(exists=True),
+)
+@click.pass_context
+def add_metadata(ctx, deposition_id, metadata):
+    """Add metadata to a Zenodo deposition by ID (uses same API as update_metadata)."""
+    logging.info(f"Adding metadata to deposition: {deposition_id}")
+    base_url = zenodo_url(ctx.obj["SANDBOX"])
+    token = access_token(ctx.obj, ctx.obj["SANDBOX"])
+    if not token:
+        raise click.ClickException("Access token is missing in the configuration")
+    params = {"access_token": token}
+    metadata_object = zenodo_deposit.metadata.metadata_from_toml(metadata, ctx.obj)
+    if not metadata_object.get("title"):
+        raise click.ClickException("Metadata must include a title")
+    if not metadata_object.get("creators"):
+        raise click.ClickException("Metadata must include creators")
+    results = zenodo_deposit.api.add_metadata(base_url, deposition_id, metadata_object, params)
+    logging.info(f"Metadata added to deposition ID: {deposition_id}")
+    print(json.dumps(results))
+
+@cli.command(help="Add tags to an existing deposition")
+@click.argument("deposition_id", type=int)
+@click.option(
+    "-k",
+    "--keywords",
+    required=True,
+    multiple=True,
+    help="Keyword(s) to add to the deposition",
+)
+@click.pass_context
+def tag(ctx, deposition_id, keywords):
+    logging.info(f"Adding tags to deposition: {deposition_id}")
+    base_url = zenodo_url(ctx.obj["SANDBOX"])
+    token = access_token(ctx.obj, ctx.obj["SANDBOX"])
+    params = {"access_token": token}
+    # Retrieve current metadata
+    deposition = zenodo_deposit.api.get_deposition(deposition_id, ctx.obj, ctx.obj["SANDBOX"])
+    metadata = deposition.get("metadata", {})
+    current_keywords = metadata.get("keywords", [])
+    metadata["keywords"] = list(set(current_keywords + list(keywords)))
+    results = zenodo_deposit.api.update_metadata(base_url, deposition_id, metadata, params)
+    logging.info(f"Tags added to deposition ID: {deposition_id}")
+    print(json.dumps(results))
+    
 @cli.command(help="Search for depositions")
 @click.option("--query", required=True, help="Search query")
 @click.option("--size", default=10, help="Number of results to return")
@@ -311,7 +406,6 @@ def search(ctx, query, size, page, sort, status):
         sandbox=ctx.obj["SANDBOX"],
     )
     print(json.dumps(results))
-
 
 if __name__ == "__main__":
     cli()
