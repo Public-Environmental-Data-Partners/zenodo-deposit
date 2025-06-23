@@ -373,11 +373,13 @@ def add_metadata(ctx, deposition_id, metadata):
 )
 @click.pass_context
 def tag(ctx, deposition_id, keywords):
+    """Add tags (keywords) to a Zenodo deposition by ID."""
     logging.info(f"Adding tags to deposition: {deposition_id}")
     base_url = zenodo_url(ctx.obj["SANDBOX"])
     token = access_token(ctx.obj, ctx.obj["SANDBOX"])
+    if not token:
+        raise click.ClickException("Access token is missing in the configuration")
     params = {"access_token": token}
-    # Retrieve current metadata
     deposition = zenodo_deposit.api.get_deposition(deposition_id, ctx.obj, ctx.obj["SANDBOX"])
     metadata = deposition.get("metadata", {})
     current_keywords = metadata.get("keywords", [])
@@ -385,7 +387,7 @@ def tag(ctx, deposition_id, keywords):
     results = zenodo_deposit.api.update_metadata(base_url, deposition_id, metadata, params)
     logging.info(f"Tags added to deposition ID: {deposition_id}")
     print(json.dumps(results))
-    
+
 @cli.command(help="Search for depositions")
 @click.option("--query", required=True, help="Search query")
 @click.option("--size", default=10, help="Number of results to return")
