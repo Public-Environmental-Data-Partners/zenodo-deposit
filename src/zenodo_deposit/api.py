@@ -57,6 +57,11 @@ def create_deposition(base_url: str, params: Dict) -> Dict:
     )
     logger.debug(f"Response: {response.status_code} {response.text}")
     if response.status_code != 201:
+        try:
+            error_details = response.json()
+            logger.error(f"Failed to create deposition: {error_details}")
+        except ValueError:
+            logger.error(f"Failed to create deposition: {response.status_code} {response.text}")
         response.raise_for_status()
     return response.json()
 
@@ -234,6 +239,9 @@ def delete_deposition(base_url: str, deposition_id: int, params: Dict) -> Dict:
         f"{base_url}/deposit/depositions/{deposition_id}", params=params
     )
     response.raise_for_status()
+    if response.status_code == 204:
+        logger.info(f"Deposition {deposition_id} deleted successfully")
+        return {"id": deposition_id, "status": "deleted"}
     return response.json()
 
 def get_deposition(deposition_id: int, config: Dict, sandbox: bool = True) -> Dict:
