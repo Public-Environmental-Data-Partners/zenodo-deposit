@@ -62,3 +62,7 @@ Example:
 ```bash
 $ zd --dev --log-level DEBUG upload --title 'Testing URL with larger dataset' --type 'dataset' --keywords 'rmp, epa' --name 'Fitzgerald, Will' --affiliation 'EDGI' --description 'Location database' --metadata metadata.toml https://edg.epa.gov/EPADataCommons/public/OA/EPA_SmartLocationDatabase_V3_Jan_2021_Final.csv
 ```
+
+## Acknowledgements
+
+This code was developed for EDGI.
