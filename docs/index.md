@@ -6,7 +6,7 @@
 
 A command line interface to making file deposits to Zenoodo
 
-- **Github repository**: <https://github.com/willf/zenodo-deposit/>
+- **Github repository**: <https://github.com/Public-Environmental-Data-Partners/zenodo-deposit/>
 - **Documentation** <https://pypi.org/project/zenodo-deposit/>
 
 ## Understanding the use case
@@ -62,3 +62,7 @@ Example:
 ```bash
 $ zd --dev --log-level DEBUG upload --title 'Testing URL with larger dataset' --type 'dataset' --keywords 'rmp, epa' --name 'Fitzgerald, Will' --affiliation 'EDGI' --description 'Location database' --metadata metadata.toml https://edg.epa.gov/EPADataCommons/public/OA/EPA_SmartLocationDatabase_V3_Jan_2021_Final.csv
 ```
+
+## Acknowledgements
+
+This code was developed for EDGI.

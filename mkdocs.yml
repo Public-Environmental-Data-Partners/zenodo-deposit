@@ -1,10 +1,9 @@
-site_name: downlow
-repo_url: https://github.com/willf/downlow
-site_url: https://willf.github.io/downlow
-site_description: A bulk downloader with tenacity and grace
+site_name: zenodo-deposit
+repo_url: https://github.com//Public-Environmental-Data-Partners/zenodo-deposit
+site_description: A command line interface for Zenodo
 site_author: Will Fitzgerald
 edit_uri: edit/main/docs/
-repo_name: willf/downlow
+repo_name: Public-Environmental-Data-Partners/zenodo-deposit
 copyright: Maintained by <a href="https://willf.com">willf</a>.
 
 nav:
@@ -15,7 +14,7 @@ plugins:
   - mkdocstrings:
       handlers:
         python:
-          paths: ["src/downlow"]
+          paths: ["src/zenodo_deposit"]
 theme:
   name: material
   feature:
@@ -41,9 +40,9 @@ theme:
 extra:
   social:
     - icon: fontawesome/brands/github
-      link: https://github.com/willf/downlow
+      link: https://github.com/Public-Environmental-Data-Partners/zenodo-deposit
     - icon: fontawesome/brands/python
-      link: https://pypi.org/project/downlow
+      link: https://pypi.org/project/zenodo-deposit
 
 markdown_extensions:
   - toc:
