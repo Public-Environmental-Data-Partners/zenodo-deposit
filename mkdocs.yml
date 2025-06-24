@@ -1,6 +1,5 @@
 site_name: zenodo-deposit
 repo_url: https://github.com//Public-Environmental-Data-Partners/zenodo-deposit
-site_url: https://willf.github.io/downlow
 site_description: A command line interface for Zenodo
 site_author: Will Fitzgerald
 edit_uri: edit/main/docs/
