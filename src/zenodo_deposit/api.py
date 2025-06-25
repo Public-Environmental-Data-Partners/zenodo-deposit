@@ -233,7 +233,7 @@ def add_metadata(
     base_url: str, deposition_id: int, metadata: Dict, params: Dict
 ) -> Dict:
     """
-    Add metadata to the Zenodo deposition.
+    Add metadata to the Zenodo deposition, merging with existing metadata.
 
     Args:
         base_url (str): The base URL for the Zenodo API.
@@ -244,8 +244,29 @@ def add_metadata(
     Returns:
         Dict: The response from the Zenodo API.
     """
+    logger.info(f"Adding metadata to deposition {deposition_id}")
+    logger.debug(f"New metadata: {metadata}")
+    # Step 1: Retrieve existing metadata
+    existing_deposition = get_deposition(deposition_id, params=params, base_url=base_url)
+    existing_metadata = existing_deposition.get("metadata", {})
+
+    # Step 2: Merge new metadata
+    merged_metadata = existing_metadata.copy()
+    for key, value in metadata.items():
+        if key in ["keywords", "creators", "contributors"]:
+            # Append lists, ensuring no duplicates
+            existing_list = merged_metadata.get(key, [])
+            new_list = value if isinstance(value, list) else [value]
+            merged_list = existing_list + [item for item in new_list if item not in existing_list]
+            merged_metadata[key] = merged_list
+        else:
+            # Update scalar fields if provided
+            merged_metadata[key] = value
+
+    # Step 3: Update deposition with merged metadata
+    logger.debug(f"Merged metadata: {merged_metadata}")
     headers = {"Content-Type": "application/json"}
-    data = {"metadata": metadata}
+    data = {"metadata": merged_metadata}
     response = requests.put(
         f"{base_url}/deposit/depositions/{deposition_id}",
         params=params,
@@ -253,7 +274,9 @@ def add_metadata(
         headers=headers,
     )
     response.raise_for_status()
+    logger.debug(f"Response: {response.status_code} {response.json()}")
     return response.json()
+
 
 
 def publish_deposition(base_url: str, deposition_id: int, params: Dict) -> Dict:
@@ -374,31 +397,32 @@ def delete_deposition(base_url: str, deposition_id: int, params: Dict) -> Dict:
         return {}
     return response.json()
 
-def get_deposition(deposition_id: int, config: Dict, sandbox: bool = True) -> Dict:
+def get_deposition(deposition_id: int, config: Dict = None, sandbox: bool = True, base_url: str = None, params: Dict = None) -> Dict:
     """
     Get the Zenodo deposition.
 
     Args:
-        base_url (str): The base URL for the Zenodo API.
         deposition_id (int): The ID of the deposition.
-        params (Dict): The parameters for the request, including the access token.
+        config (Dict, optional): The configuration containing the access token.
+        sandbox (bool): Whether to use the Zenodo sandbox or production URL.
+        base_url (str, optional): The base URL for the Zenodo API.
+        params (Dict, optional): Parameters including access token.
 
     Returns:
         Dict: The response from the Zenodo API.
     """
-    base_url = zenodo_url(sandbox)
-    token = access_token(config, sandbox)
+    if not base_url:
+        base_url = zenodo_url(sandbox)
+    token = access_token(config, sandbox) if config else params.get("access_token")
     if not token:
         raise ValueError("Access token is missing in the configuration")
-
-    base_url = zenodo_url(sandbox)
-    params = {"access_token": token}
+    if not params:
+        params = {"access_token": token}
     response = requests.get(
         f"{base_url}/deposit/depositions/{deposition_id}", params=params
     )
     response.raise_for_status()
     return response.json()
-
 
 def search(
     query: str,

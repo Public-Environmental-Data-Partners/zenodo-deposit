@@ -170,26 +170,86 @@ def debug(ctx, func):
 
 
 @cli.command(help="Create a new deposition, without uploading a file")
+@click.option("--title", required=False, help="Title of the deposition")
+@click.option("--description", required=False, help="Description of the deposition")
 @click.option(
+    "--variable",
+    "-v",
+    required=False,
+    help="Variables for metadata, format: key:value",
+    multiple=True,
+)
+@click.option(
+    "--type",
+    required=False,
+    help="Upload type",
+    type=click.Choice(zenodo_deposit.metadata.upload_types),
+    default="dataset",
+)
+@click.option(
+    "--keywords",
+    "-k",
+    required=False,
+    help="Keyword(s) for the deposition",
+    multiple=True,
+)
+@click.option(
+    "-m",
     "--metadata",
     default=None,
     help="Path to the metadata file",
-    type=click.Path(),
+    type=click.Path(exists=True),
 )
 @click.pass_context
-def create(ctx, metadata):
+def create(ctx, title, description, variable, type, keywords, metadata):
+    """
+    Create a new Zenodo deposition without uploading a file, with optional metadata.
+
+    Args:
+        ctx: Click context object containing configuration.
+        title: Title of the deposition.
+        description: Description of the deposition.
+        variable: Variables for metadata substitution (format: key:value).
+        type: Upload type (e.g., dataset, publication).
+        keywords: Keyword(s) for the deposition.
+        metadata: Path to the metadata TOML file.
+
+    Raises:
+        click.ClickException: If the access token is missing, metadata is invalid, or the API request fails.
+    """
+    logging.info("Creating new deposition")
     sandbox = ctx.obj["SANDBOX"]
     base_url = zenodo_url(sandbox)
+    token = access_token(ctx.obj, sandbox)
+    if not token:
+        raise click.ClickException("Access token is missing in the configuration")
+    params = {"access_token": token}
+    ctx.obj["title"] = title
+    ctx.obj["description"] = description
+    ctx.obj["upload_type"] = type
+    ctx.obj["keywords"] = [x.strip() for x in flatten([k.split(",") for k in keywords])]
+    for var in variable:
+        key, value = var.split(":")
+        ctx.obj[key] = value
+    metadata_object = {}
     if metadata:
         metadata_object = zenodo_deposit.metadata.metadata_from_toml(metadata, ctx.obj)
-        ctx.obj["metadata"] = metadata_object
-    results = zenodo_deposit.api.create_deposition(
-        base_url,
-        {
-            "metadata": metadata_object,
-            "config": ctx.obj,
-        },
-    )
+    if title:
+        metadata_object["title"] = title
+    if description:
+        metadata_object["description"] = description
+    if type:
+        metadata_object["upload_type"] = type
+    if keywords:
+        current_keywords = metadata_object.get("keywords", [])
+        metadata_object["keywords"] = list(current_keywords) + list(keywords)
+    if not metadata_object.get("title"):
+        raise click.ClickException("Metadata must include a title")
+    if not metadata_object.get("creators"):
+        raise click.ClickException("Metadata must include creators")
+    results = zenodo_deposit.api.create_deposition(base_url, params)
+    if metadata_object:
+        results = zenodo_deposit.api.add_metadata(base_url, results["id"], metadata_object, params)
     logging.info(f"Deposition created with ID: {results['id']}")
     print(json.dumps(results))
 
@@ -260,7 +320,17 @@ def delete(ctx, deposition_id):
 )
 @click.pass_context
 def update_metadata(ctx, deposition_id, metadata):
-    """Update metadata for a Zenodo deposition by ID."""
+    """
+    Update metadata for a Zenodo deposition by ID, overwriting existing metadata.
+
+    Args:
+        ctx: Click context object containing configuration.
+        deposition_id: The ID of the deposition to update.
+        metadata: Path to the metadata TOML file.
+
+    Raises:
+        click.ClickException: If the access token is missing, metadata is invalid, or the API request fails.
+    """
     logging.info(f"Updating metadata for deposition: {deposition_id}")
     base_url = zenodo_url(ctx.obj["SANDBOX"])
     token = access_token(ctx.obj, ctx.obj["SANDBOX"])
@@ -276,11 +346,43 @@ def update_metadata(ctx, deposition_id, metadata):
     logging.info(f"Metadata updated for deposition ID: {deposition_id}")
     print(json.dumps(results))
 
-# TODO: Implement the following command
-# @cli.command(help="Add metadata to the deposition")
-# @click.pass_context
-# def add_metadata(ctx):
-#     debug(ctx, add_metadata)
+
+@cli.command("add_metadata", help="Add metadata to an existing deposition without overwriting existing metadata")
+@click.argument("deposition_id", type=int)
+@click.option(
+    "-m",
+    "--metadata",
+    required=True,
+    help="Path to the metadata file",
+    type=click.Path(exists=True),
+)
+@click.pass_context
+def add_metadata(ctx, deposition_id, metadata):
+    """
+    Add metadata to a Zenodo deposition by ID, merging with existing metadata.
+
+    Args:
+        ctx: Click context object containing configuration.
+        deposition_id: The ID of the deposition to update.
+        metadata: Path to the metadata TOML file.
+
+    Raises:
+        click.ClickException: If the access token is missing or the API request fails.
+    """
+    logging.info(f"Adding metadata to deposition: {deposition_id}")
+    base_url = zenodo_url(ctx.obj["SANDBOX"])
+    token = access_token(ctx.obj, ctx.obj["SANDBOX"])
+    if not token:
+        raise click.ClickException("Access token is missing in the configuration")
+    params = {"access_token": token}
+    metadata_object = zenodo_deposit.metadata.metadata_from_toml(metadata, ctx.obj)
+    if not metadata_object.get("title"):
+        raise click.ClickException("Metadata must include a title")
+    if not metadata_object.get("creators"):
+        raise click.ClickException("Metadata must include creators")
+    results = zenodo_deposit.api.add_metadata(base_url, deposition_id, metadata_object, params)
+    logging.info(f"Metadata added to deposition ID: {deposition_id}")
+    print(json.dumps(results))
 
 
 @cli.command(
