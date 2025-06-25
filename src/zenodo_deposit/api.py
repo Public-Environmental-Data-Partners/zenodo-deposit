@@ -355,10 +355,10 @@ def update_metadata(
 
 def delete_deposition(base_url: str, deposition_id: int, params: Dict) -> Dict:
     """
-    Delete the Zenodo deposition. Note: published depositions cannot be deleted.
+    Delete a Zenodo draft deposition. Published depositions cannot be deleted.
 
     Args:
-        base_url (str): The base URL for the Zenodo API.
+        base_url (str): The base URL for the Zenodo API (e.g., https://sandbox.zenodo.org/api).
         deposition_id (int): The ID of the deposition.
         params (Dict): The parameters for the request, including the access token.
 
@@ -375,7 +375,6 @@ def delete_deposition(base_url: str, deposition_id: int, params: Dict) -> Dict:
     if response.status_code == 204:
         return {}
     return response.json()
-
 
 def get_deposition(deposition_id: int, config: Dict, sandbox: bool = True) -> Dict:
     """
