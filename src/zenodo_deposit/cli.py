@@ -717,6 +717,45 @@ def new_version(ctx, deposition_id, title, description, variable, type, keywords
         error_msg = e.response.json().get("message", str(e)) if e.response else str(e)
         raise click.ClickException(f"Failed to finalize operation: {error_msg}")
 
+
+
+@cli.command(help="Add tags to an existing deposition")
+@click.argument("deposition_id", type=int)
+@click.option(
+    "-k",
+    "--keywords",
+    required=True,
+    multiple=True,
+    help="Keyword(s) to add to the deposition",
+)
+@click.pass_context
+def tag(ctx, deposition_id, keywords):
+    """
+    Add tags (keywords) to a Zenodo deposition by ID.
+
+    Args:
+        ctx: Click context object containing configuration.
+        deposition_id (int): The ID of the deposition.
+        keywords (tuple): Keywords to add to the deposition.
+
+    Returns:
+        None: Outputs the updated deposition metadata as JSON.
+    """
+    logging.info(f"Adding tags to deposition: {deposition_id}")
+    base_url = zenodo_url(ctx.obj["SANDBOX"])
+    token = access_token(ctx.obj, ctx.obj["SANDBOX"])
+    if not token:
+        raise click.ClickException("Access token is missing in the configuration")
+    params = {"access_token": token}
+    deposition = zenodo_deposit.api.get_deposition(deposition_id, ctx.obj, ctx.obj["SANDBOX"])
+    metadata = deposition.get("metadata", {})
+    current_keywords = metadata.get("keywords", [])
+    metadata["keywords"] = list(set(current_keywords + list(keywords)))
+    results = zenodo_deposit.api.update_metadata(base_url, deposition_id, metadata, params)
+    logging.info(f"Tags added to deposition ID: {deposition_id}")
+    print(json.dumps(results))
+
+
 @cli.command(help="Search depositions based on a query string")
 @click.argument("query", required=True)
 @click.option("--size", default=10, help="Number of results to return")
