@@ -1,6 +1,7 @@
 import logging.config
 import click
 import json
+import requests  # Added for HTTPError handling
 import zenodo_deposit.api
 import zenodo_deposit.config
 from zenodo_deposit.api import (
@@ -192,24 +193,88 @@ def create(ctx, metadata):
     logging.info(f"Deposition created with ID: {results['id']}")
     print(json.dumps(results))
 
+@cli.command(help="Publish an existing deposition")
+@click.argument("deposition_id", type=int)
+@click.pass_context
+def publish(ctx, deposition_id):
+    """
+    Publish a Zenodo deposition by ID.
 
-# TODO: Implement the following command
-# @cli.command(help="Publish the deposition")
-# @click.pass_context
-# def publish(ctx):
-#     debug(ctx, publish)
+    Args:
+        ctx: Click context object containing configuration.
+        deposition_id: The ID of the deposition to publish.
 
-# TODO: Implement the following command
-# @cli.command(help="Delete the deposition")
-# @click.pass_context
-# def delete(ctx):
-#     debug(ctx, delete)
+    Raises:
+        click.ClickException: If the access token is missing or the API request fails.
+    """
+    logging.info(f"Publishing deposition: {deposition_id}")
+    base_url = zenodo_url(ctx.obj["SANDBOX"])
+    token = access_token(ctx.obj, ctx.obj["SANDBOX"])
+    if not token:
+        raise click.ClickException("Access token is missing in the configuration")
+    params = {"access_token": token}
+    try:
+        results = zenodo_deposit.api.publish_deposition(base_url, deposition_id, params)
+        logging.info(f"Deposition published with ID: {deposition_id}")
+        print(json.dumps(results))
+    except requests.exceptions.HTTPError as e:
+        error_msg = e.response.json().get("message", str(e)) if e.response else str(e)
+        raise click.ClickException(f"Failed to publish deposition: {error_msg}")
 
-# TODO: Implement the following command
-# @cli.command(help="Update the metadata of the deposition")
-# @click.pass_context
-# def update_metadata(ctx):
-#     debug(ctx, update_metadata)
+@cli.command(help="Delete a draft deposition")
+@click.argument("deposition_id", type=int)
+@click.pass_context
+def delete(ctx, deposition_id):
+    """
+    Delete a Zenodo draft deposition by ID.
+
+    Args:
+        ctx: Click context object containing configuration.
+        deposition_id: The ID of the deposition to delete.
+
+    Raises:
+        click.ClickException: If the access token is missing or the API request fails.
+    """
+    logging.info(f"Deleting deposition: {deposition_id}")
+    base_url = zenodo_url(ctx.obj["SANDBOX"])
+    token = access_token(ctx.obj, ctx.obj["SANDBOX"])
+    if not token:
+        raise click.ClickException("Access token is missing in the configuration")
+    params = {"access_token": token}
+    try:
+        results = zenodo_deposit.api.delete_deposition(base_url, deposition_id, params)
+        logging.info(f"Deposition deleted with ID: {deposition_id}")
+        print(json.dumps(results))
+    except requests.exceptions.HTTPError as e:
+        error_msg = e.response.json().get("message", str(e)) if e.response and e.response.text else str(e)
+        raise click.ClickException(f"Failed to delete deposition: {error_msg}")
+
+@cli.command("update_metadata", help="Update metadata for an existing deposition")
+@click.argument("deposition_id", type=int)
+@click.option(
+    "-m",
+    "--metadata",
+    required=True,
+    help="Path to the metadata file",
+    type=click.Path(exists=True),
+)
+@click.pass_context
+def update_metadata(ctx, deposition_id, metadata):
+    """Update metadata for a Zenodo deposition by ID."""
+    logging.info(f"Updating metadata for deposition: {deposition_id}")
+    base_url = zenodo_url(ctx.obj["SANDBOX"])
+    token = access_token(ctx.obj, ctx.obj["SANDBOX"])
+    if not token:
+        raise click.ClickException("Access token is missing in the configuration")
+    params = {"access_token": token}
+    metadata_object = zenodo_deposit.metadata.metadata_from_toml(metadata, ctx.obj)
+    if not metadata_object.get("title"):
+        raise click.ClickException("Metadata must include a title")
+    if not metadata_object.get("creators"):
+        raise click.ClickException("Metadata must include creators")
+    results = zenodo_deposit.api.update_metadata(base_url, deposition_id, metadata_object, params)
+    logging.info(f"Metadata updated for deposition ID: {deposition_id}")
+    print(json.dumps(results))
 
 # TODO: Implement the following command
 # @cli.command(help="Add metadata to the deposition")
