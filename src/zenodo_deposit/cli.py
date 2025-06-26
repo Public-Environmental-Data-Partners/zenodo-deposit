@@ -198,7 +198,7 @@ def deposit(ctx, title, type, keywords, name, affiliation, metadata):
     Raises:
         click.ClickException: If the file is invalid or the API request fails.
     """
-    path = os.path.abspath(file)
+    path = os.path.abspath(file) # noqa: F821
     ctx.obj["title"] = title
     ctx.obj["upload_type"] = type
     ctx.obj["keywords"] = [x.strip() for x in keywords.split(",") if x.strip()]
@@ -548,7 +548,7 @@ def upload(ctx, title, description, variable, type, keywords, metadata, publish,
     if not metadata_object.get("title"):
         raise click.ClickException("Metadata must include title")
     if not metadata_object.get("creators"):
-        raise clickException("Metadata must include creators")
+        raise click.ClickException("Metadata must include creators")
     if not metadata_object.get("upload_type"):
         raise click.ClickException("Metadata must include upload_type")
     logger.debug(f"Metadata object: {metadata_object}")

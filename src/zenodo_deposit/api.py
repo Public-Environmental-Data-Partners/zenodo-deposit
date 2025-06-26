@@ -442,6 +442,7 @@ def delete_deposition(base_url: str, deposition_id: int, params: Dict) -> Dict:
         return {}
     return response.json()
 
+
 def get_deposition(deposition_id: int, config: Dict = None, sandbox: bool = True, base_url: str = None, params: Dict = None) -> Dict:
     """
     Get details of a Zenodo deposition.
@@ -462,16 +463,24 @@ def get_deposition(deposition_id: int, config: Dict = None, sandbox: bool = True
     """
     if not base_url:
         base_url = zenodo_url(sandbox)
-    token = access_token(config, sandbox) if config else params.get("access_token")
-    if not token:
-        raise ValueError("Access token is missing in the configuration")
+    if config:
+        token = access_token(config, sandbox)
+    else:
+        token_key = "ZENODO_SANDBOX_ACCESS_TOKEN" if sandbox else "ZENODO_ACCESS_TOKEN"
+        token = params.get(token_key) if params else None
+        if not token:
+            raise ValueError(f"Access token '{token_key}' is missing in the configuration")
     if not params:
         params = {"access_token": token}
+    elif params.get("access_token") != token:
+        params = params.copy()
+        params["access_token"] = token
     response = requests.get(
         f"{base_url}/deposit/depositions/{deposition_id}", params=params
     )
     response.raise_for_status()
     return response.json()
+
 
 def create_new_version(
     base_url: str, deposition_id: int, params: Dict[str, str], config: Dict[str, str], sandbox: bool = True, files_to_add: List[str] = None, zip: bool = False
@@ -503,7 +512,7 @@ def create_new_version(
     logger.debug(f"Response: {r.status_code} {r.json()}")
     try:
         r.raise_for_status()
-    except requests.exceptions.HTTPError as e:
+    except requests.exceptions.HTTPError:
         logger.error(f"Failed to create new version: {r.json()}")
         raise
     new_version_data = r.json()
