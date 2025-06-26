@@ -351,7 +351,6 @@ def upload(
     return deposition
 
 
-
 def update_metadata(base_url: str, deposition_id: int, metadata: Dict, params: Dict) -> Dict:
     """
     Update metadata for a deposition.
@@ -359,6 +358,8 @@ def update_metadata(base_url: str, deposition_id: int, metadata: Dict, params: D
     Args:
         base_url (str): The base URL for the Zenodo API.
         deposition_id (int): The ID of the deposition.
+        metadata (dict): The metadata to update.
+        params (dict): Parameters including access token.
         metadata (dict): The metadata to update.
         params (dict): Parameters including access token.
 
@@ -371,6 +372,9 @@ def update_metadata(base_url: str, deposition_id: int, metadata: Dict, params: D
         params=params,
         json={"metadata": metadata},
     )
+    logging.debug(f"Response: {r.status_code} {r.json()}")
+    r.raise_for_status()
+    return r.json()
     logging.debug(f"Response: {r.status_code} {r.json()}")
     r.raise_for_status()
     return r.json()
@@ -389,11 +393,17 @@ def delete_deposition(base_url: str, deposition_id: int, params: Dict) -> Dict:
 
     Raises:
         requests.exceptions.HTTPError: If the API request fails (e.g., 404, 403).
+        Dict: Empty dict on success (204), or the API response on error.
+
+    Raises:
+        requests.exceptions.HTTPError: If the API request fails (e.g., 404, 403).
     """
     response = requests.delete(
         f"{base_url}/deposit/depositions/{deposition_id}", params=params
     )
     response.raise_for_status()
+    if response.status_code == 204:
+        return {}
     if response.status_code == 204:
         return {}
     return response.json()
