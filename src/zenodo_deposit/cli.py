@@ -1,6 +1,6 @@
 import logging.config
 import click
-uv run ruff check src/zenodo_deposit/cli.pyimport requests  # Added
+import requests  # Added
 import json
 import zenodo_deposit.api
 import zenodo_deposit.config
