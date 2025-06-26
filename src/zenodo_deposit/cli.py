@@ -2,7 +2,6 @@ import logging.config
 import click
 import json
 import requests  # Added for HTTPError handling
-import requests  # Added for HTTPError handling
 import zenodo_deposit.api
 import zenodo_deposit.config
 from zenodo_deposit.api import (
