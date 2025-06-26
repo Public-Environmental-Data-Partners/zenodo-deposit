@@ -81,10 +81,11 @@ def test_add_metadata(base_url, params, deposition_response):
         "creators": [{"name": "Doe, John", "affiliation": "Zenodo"}],
     }
 
-    with patch("requests.put") as mock_put:
+    with patch("requests.get") as mock_get, patch("requests.put") as mock_put:
+        mock_get.return_value.status_code = 200
+        mock_get.return_value.json.return_value = {"id": deposition_id, "metadata": {}}
         mock_put.return_value.status_code = 200
         mock_put.return_value.json.return_value = deposition_response
-
         response = add_metadata(base_url, deposition_id, metadata, params)
         assert response == deposition_response
 
