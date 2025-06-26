@@ -327,31 +327,29 @@ def upload(
     return deposition
 
 
-def update_metadata(
-    base_url: str, deposition_id: int, metadata: Dict, params: Dict
-) -> Dict:
+
+def update_metadata(base_url: str, deposition_id: int, metadata: Dict, params: Dict) -> Dict:
     """
-    Update metadata of the Zenodo deposition.
+    Update metadata for a deposition.
 
     Args:
         base_url (str): The base URL for the Zenodo API.
         deposition_id (int): The ID of the deposition.
-        metadata (Dict): The metadata to update in the deposition.
-        params (Dict): The parameters for the request, including the access token.
+        metadata (dict): The metadata to update.
+        params (dict): Parameters including access token.
 
     Returns:
-        Dict: The response from the Zenodo API.
+        dict: The updated deposition details.
     """
-    headers = {"Content-Type": "application/json"}
-    data = {"metadata": metadata}
-    response = requests.put(
+    logging.info(f"Updating metadata for deposition {deposition_id}")
+    r = requests.put(
         f"{base_url}/deposit/depositions/{deposition_id}",
         params=params,
-        data=json.dumps(data),
-        headers=headers,
+        json={"metadata": metadata},
     )
-    response.raise_for_status()
-    return response.json()
+    logging.debug(f"Response: {r.status_code} {r.json()}")
+    r.raise_for_status()
+    return r.json()
 
 def delete_deposition(base_url: str, deposition_id: int, params: Dict) -> Dict:
     """
