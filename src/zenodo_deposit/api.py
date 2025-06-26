@@ -126,10 +126,10 @@ def add_url(bucket_url: str, url: str, params: Dict, name: str = None) -> Dict:
     Upload a file from a URL to the Zenodo deposition bucket.
 
     Args:
-        bucket_url (str): The URL of the deposition bucket.
-        file_path (Path): The path to the file to upload.
-        params (Dict): The parameters for the request, including the access token.
-        name (str): The name of the file to save as, defaults to the file name.
+        bucket_url: The URL of the deposition bucket.
+        url: The URL to the file to upload.
+        params: Parameters for the request, including the access token.
+        name: The name to save the file as, defaults to the URL's filename.
 
     Returns:
         Dict: The response from the Zenodo API.
@@ -161,12 +161,10 @@ def add_file(bucket_url: str, file_path: Path, params: Dict, name: str = None) -
     Upload a single file to the Zenodo deposition bucket.
 
     Args:
-        bucket_url (str): The URL of the deposition bucket.
-        directory (str): The path to the directory to upload.
-        params (Dict): The parameters for the request, including the access token.
-        names (List[str]): The names of the files to save as, defaults to the file names.
-        if the list is shorter than the number of files, the remaining files will be
-        saved with their original names.
+        bucket_url: The URL of the deposition bucket.
+        file_path: The path to the file to upload.
+        params: Parameters for the request, including the access token.
+        name: The name to save the file as, defaults to the file's name.
 
     Returns:
         Dict: The response from the Zenodo API.
