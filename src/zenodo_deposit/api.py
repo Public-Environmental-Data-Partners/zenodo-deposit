@@ -1,5 +1,4 @@
 import requests
-import json
 from typing import Dict, List
 from pathlib import Path
 from urllib.parse import urlparse
@@ -244,10 +243,15 @@ def add_metadata(
     Returns:
         Dict: The response from the Zenodo API.
     """
+    # Construct params with access_token for get_deposition
+    token = params.get("ZENODO_SANDBOX_ACCESS_TOKEN") or params.get("ZENODO_ACCESS_TOKEN")
+    if not token:
+        raise ValueError("Access token is missing in the parameters")
+    get_params = {"access_token": token}
     logger.info(f"Adding metadata to deposition {deposition_id}")
     logger.debug(f"New metadata: {metadata}")
     # Step 1: Retrieve existing metadata
-    existing_deposition = get_deposition(deposition_id, params=params, base_url=base_url)
+    existing_deposition = get_deposition(deposition_id, params=get_params, base_url=base_url)
     existing_metadata = existing_deposition.get("metadata", {})
 
     # Step 2: Merge new metadata
@@ -265,13 +269,10 @@ def add_metadata(
 
     # Step 3: Update deposition with merged metadata
     logger.debug(f"Merged metadata: {merged_metadata}")
-    headers = {"Content-Type": "application/json"}
-    data = {"metadata": merged_metadata}
     response = requests.put(
         f"{base_url}/deposit/depositions/{deposition_id}",
         params=params,
-        data=json.dumps(data),
-        headers=headers,
+        json={"metadata": merged_metadata}
     )
     response.raise_for_status()
     logger.debug(f"Response: {response.status_code} {response.json()}")
