@@ -11,12 +11,13 @@ import re
 
 logger = logging.getLogger(__name__)
 
+
 def valid_url(url: str) -> bool:
     """
     Check if a URL is valid.
 
     Args:
-        url: The URL to check.
+        url (str): The URL to check.
 
     Returns:
         bool: True if the URL is valid, False otherwise.
@@ -38,7 +39,7 @@ def file_list(path: str) -> List[Path]:
     Get a list of files in a directory, recursively.
 
     Args:
-        path: The path to the directory.
+        path (str): The path to the directory.
 
     Returns:
         List[Path]: A list of files in the directory.
@@ -48,25 +49,27 @@ def file_list(path: str) -> List[Path]:
         return [path]
     return [f for f in Path(path).rglob("*") if f.is_file()]
 
+
 def zenodo_url(sandbox: bool = True) -> str:
     """
     Get the base URL for the Zenodo API.
 
     Args:
-        sandbox: Whether to use the Zenodo sandbox or production URL.
+        sandbox (bool): Whether to use the Zenodo sandbox or production URL.
 
     Returns:
         str: The base URL for the Zenodo API.
     """
     return "https://sandbox.zenodo.org/api" if sandbox else "https://zenodo.org/api"
 
+
 def access_token(config: Dict, sandbox: bool = True) -> str:
     """
     Get the access token from the configuration.
 
     Args:
-        config: The configuration containing the access token.
-        sandbox: Whether to use the Zenodo sandbox or production access token.
+        config (Dict): The configuration containing the access token.
+        sandbox (bool): Whether to use the Zenodo sandbox or production access token.
 
     Returns:
         str: The access token.
@@ -93,8 +96,8 @@ def create_deposition(base_url: str, params: Dict) -> Dict:
     Create a new deposition on Zenodo.
 
     Args:
-        base_url: The base URL for the Zenodo API.
-        params: Parameters for the request, including the access token.
+        base_url (str): The base URL for the Zenodo API.
+        params (Dict): The parameters for the request, including the access token.
 
     Returns:
         Dict: The response from the Zenodo API.
@@ -111,6 +114,7 @@ def create_deposition(base_url: str, params: Dict) -> Dict:
         response.raise_for_status()
     return response.json()
 
+
 @backoff.on_exception(
     backoff.expo,
     requests.exceptions.RequestException,
@@ -122,10 +126,10 @@ def add_url(bucket_url: str, url: str, params: Dict, name: str = None) -> Dict:
     Upload a file from a URL to the Zenodo deposition bucket.
 
     Args:
-        bucket_url: The URL of the deposition bucket.
-        url: The URL to the file to upload.
-        params: Parameters for the request, including the access token.
-        name: The name to save the file as, defaults to the URL's filename.
+        bucket_url (str): The URL of the deposition bucket.
+        file_path (Path): The path to the file to upload.
+        params (Dict): The parameters for the request, including the access token.
+        name (str): The name of the file to save as, defaults to the file name.
 
     Returns:
         Dict: The response from the Zenodo API.
@@ -157,10 +161,12 @@ def add_file(bucket_url: str, file_path: Path, params: Dict, name: str = None) -
     Upload a single file to the Zenodo deposition bucket.
 
     Args:
-        bucket_url: The URL of the deposition bucket.
-        file_path: The path to the file to upload.
-        params: Parameters for the request, including the access token.
-        name: The name to save the file as, defaults to the file's name.
+        bucket_url (str): The URL of the deposition bucket.
+        directory (str): The path to the directory to upload.
+        params (Dict): The parameters for the request, including the access token.
+        names (List[str]): The names of the files to save as, defaults to the file names.
+        if the list is shorter than the number of files, the remaining files will be
+        saved with their original names.
 
     Returns:
         Dict: The response from the Zenodo API.
@@ -202,6 +208,7 @@ def add_directory(bucket_url: str, directory: str, params: Dict, names: List[str
     files = file_list(directory)
     if len(names) < len(files):
         names += [None] * (len(files) - len(names))
+
     if len(files) > 100:
         logger.warning("Uploading more than 100 files. Zipping the directory.")
         return [add_zipped_directory(bucket_url, directory, params)]
@@ -209,6 +216,7 @@ def add_directory(bucket_url: str, directory: str, params: Dict, names: List[str
     for file, name in zip(files, names):
         responses.append(add_file(bucket_url, file, params, name))
     return responses
+
 
 def add_zipped_directory(
     bucket_url: str, directory: str, params: Dict, name: str = None
@@ -247,6 +255,7 @@ def add_zipped_directory(
         temp_filename.unlink()
     return result
 
+
 def add_thing(
     bucket_url: str, thing: str, params: Dict, name: str = None, zip: bool = False
 ) -> Dict:
@@ -283,6 +292,7 @@ def add_thing(
         f"Do not know how to deposit {thing}. Must be a file, URL, or directory."
     )
 
+
 def add_metadata(
     base_url: str, deposition_id: int, metadata: Dict, params: Dict
 ) -> Dict:
@@ -290,16 +300,13 @@ def add_metadata(
     Add metadata to a Zenodo deposition, merging with existing metadata.
 
     Args:
-        base_url: The base URL for the Zenodo API.
-        deposition_id: The ID of the deposition.
-        metadata: The metadata to add to the deposition.
-        params: Parameters for the request, including access token.
+        base_url (str): The base URL for the Zenodo API.
+        deposition_id (int): The ID of the deposition.
+        metadata (Dict): The metadata to add to the deposition.
+        params (Dict): The parameters for the request, including the access token.
 
     Returns:
         Dict: The response from the Zenodo API.
-
-    Raises:
-        requests.exceptions.HTTPError: If the API request fails.
     """
     logger.info(f"Adding metadata to deposition {deposition_id}")
     logger.debug(f"New metadata: {metadata}")
@@ -327,14 +334,15 @@ def add_metadata(
     logger.debug(f"Response: {response.status_code} {response.json()}")
     return response.json()
 
+
 def publish_deposition(base_url: str, deposition_id: int, params: Dict) -> Dict:
     """
     Publish a Zenodo deposition.
 
     Args:
-        base_url: The base URL for the Zenodo API.
-        deposition_id: The ID of the deposition.
-        params: Parameters for the request, including access token.
+        base_url (str): The base URL for the Zenodo API.
+        deposition_id (int): The ID of the deposition.
+        params (Dict): The parameters for the request, including the access token.
 
     Returns:
         Dict: The response from the Zenodo API.
@@ -347,6 +355,7 @@ def publish_deposition(base_url: str, deposition_id: int, params: Dict) -> Dict:
     )
     response.raise_for_status()
     return response.json()
+
 
 def upload(
     paths: List[str],
@@ -362,12 +371,13 @@ def upload(
 
     Args:
         paths: List of paths to files, URLs, or directories to upload.
-        metadata: Metadata for the deposition.
-        config: Configuration dictionary containing access tokens.
-        name: The name to save the file as, defaults to the file name (for single file/URL).
-        sandbox: If True, use the sandbox environment; otherwise, use production.
-        publish: If True, publish the deposition after uploading.
-        zip: If True, zip directories before uploading.
+        metadata (Dict): The metadata for the upload.
+        name (str): The name of the file to save as, defaults to the file name. Only
+        works well if it is a single file or URL
+        config (Dict): The configuration containing the access token.
+        sandbox (bool): If True, use the sandbox environment; otherwise, use production.
+        publish (bool): If True, publish the deposition after uploading.
+        zip (bool): If True, zip directories before uploading.
 
     Returns:
         Dict: The response from the Zenodo API.
@@ -381,25 +391,35 @@ def upload(
     token = access_token(config, sandbox)
     base_url = zenodo_url(sandbox)
     params = {"access_token": token}
+
+    # Step 1: Create a new deposition
     deposition = create_deposition(base_url, params)
     deposition_id = deposition["id"]
     bucket_url = deposition["links"]["bucket"]
+
+    # Step 2: Add metadata (in case file upload fails)
     add_metadata(base_url, deposition_id, metadata, params)
+
+    # Step 3: Upload the files
     for path in paths:
         add_thing(bucket_url, path, params, name, zip)
+    
+    # Step 4: Publish the deposition, possibly
     if publish:
         return publish_deposition(base_url, deposition_id, params)
     return deposition
 
-def update_metadata(base_url: str, deposition_id: int, metadata: Dict, params: Dict) -> Dict:
+def update_metadata(
+        base_url: str, deposition_id: int, metadata: Dict, params: Dict
+) -> Dict:
     """
-    Update metadata for a Zenodo deposition, overwriting existing metadata.
+    Update metadata of the Zenodo deposition.
 
     Args:
-        base_url: The base URL for the Zenodo API.
-        deposition_id: The ID of the deposition.
-        metadata: The metadata to update.
-        params: Parameters including access token.
+        base_url (str): The base URL for the Zenodo API.
+        deposition_id (int): The ID of the deposition.
+        metadata (Dict): The metadata to update in the deposition.
+        params (Dict): The parameters for the request, including the access token.
 
     Returns:
         Dict: The updated deposition details.
@@ -421,12 +441,12 @@ def update_metadata(base_url: str, deposition_id: int, metadata: Dict, params: D
 
 def delete_deposition(base_url: str, deposition_id: int, params: Dict) -> Dict:
     """
-    Delete a Zenodo draft deposition.
+    Delete the Zenodo deposition. Note: published depositions cannot be deleted.
 
     Args:
-        base_url: The base URL for the Zenodo API.
-        deposition_id: The ID of the deposition.
-        params: Parameters including access token.
+        base_url (str): The base URL for the Zenodo API.
+        deposition_id (int): The ID of the deposition.
+        params (Dict): The parameters for the request, including the access token.
 
     Returns:
         Dict: Empty dict on success (204), or the API response on error.

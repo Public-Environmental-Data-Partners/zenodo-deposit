@@ -27,7 +27,9 @@ def flatten(lists):
                 yield from _flatten(el)
             else:
                 yield el
+
     return list(_flatten(lists))
+
 
 def hide_access_token(token):
     """
@@ -41,6 +43,7 @@ def hide_access_token(token):
     """
     return token[:4] + "*" * (len(token) - 4) if token else str(None)
 
+
 def get_unique_dicts(dict_list):
     """
     Remove duplicate dictionaries from a list.
@@ -52,7 +55,9 @@ def get_unique_dicts(dict_list):
         List: List of unique dictionaries.
     """
     unique_dicts = {frozenset(d.items()): d for d in dict_list}.values()
+    # Convert the frozensets back to dictionaries
     return list(unique_dicts)
+
 
 DEFAULT_USE_SANDBOX = True
 
@@ -63,6 +68,7 @@ logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
     handlers=[rich_handler],
 )
+
 
 @click.group(context_settings={"show_default": True})
 @click.version_option()
@@ -120,6 +126,7 @@ def cli(ctx, sandbox, config_file, log_level):
         logger.debug(f"Setting {key} to {hide_access_token(value)}")
         ctx.obj[key] = value
 
+
 @cli.command(help="Retrieve deposition details")
 @click.argument("deposition_id", type=int)
 @click.pass_context
@@ -143,6 +150,7 @@ def retrieve(ctx, deposition_id):
     except requests.exceptions.HTTPError as e:
         error_msg = e.response.json().get("message", str(e)) if e.response else str(e)
         raise click.ClickException(f"Failed to retrieve deposition: {error_msg}")
+
 
 @cli.command(help="Deposit a file")
 @click.option("--title", required=False, help="Title of the deposition")
