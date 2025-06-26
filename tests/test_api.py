@@ -127,7 +127,7 @@ def test_delete_deposition(base_url, params):
         mock_delete.return_value.status_code = 204
 
         response = delete_deposition(base_url, deposition_id, params)
-        assert response
+        assert response == {}  # Expect empty dict for 204 response
 
 
 def test_get_deposition(base_url, params, deposition_response):

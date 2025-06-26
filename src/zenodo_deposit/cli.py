@@ -1,7 +1,7 @@
 import logging.config
 import click
-import requests  # Added
 import json
+import requests  # Added for HTTPError handling
 import zenodo_deposit.api
 import zenodo_deposit.config
 from zenodo_deposit.api import (
@@ -221,11 +221,33 @@ def publish(ctx, deposition_id):
         error_msg = e.response.json().get("message", str(e)) if e.response else str(e)
         raise click.ClickException(f"Failed to publish deposition: {error_msg}")
 
-# TODO: Implement the following command
-# @cli.command(help="Delete the deposition")
-# @click.pass_context
-# def delete(ctx):
-#     debug(ctx, delete)
+@cli.command(help="Delete a draft deposition")
+@click.argument("deposition_id", type=int)
+@click.pass_context
+def delete(ctx, deposition_id):
+    """
+    Delete a Zenodo draft deposition by ID.
+
+    Args:
+        ctx: Click context object containing configuration.
+        deposition_id: The ID of the deposition to delete.
+
+    Raises:
+        click.ClickException: If the access token is missing or the API request fails.
+    """
+    logging.info(f"Deleting deposition: {deposition_id}")
+    base_url = zenodo_url(ctx.obj["SANDBOX"])
+    token = access_token(ctx.obj, ctx.obj["SANDBOX"])
+    if not token:
+        raise click.ClickException("Access token is missing in the configuration")
+    params = {"access_token": token}
+    try:
+        results = zenodo_deposit.api.delete_deposition(base_url, deposition_id, params)
+        logging.info(f"Deposition deleted with ID: {deposition_id}")
+        print(json.dumps(results))
+    except requests.exceptions.HTTPError as e:
+        error_msg = e.response.json().get("message", str(e)) if e.response and e.response.text else str(e)
+        raise click.ClickException(f"Failed to delete deposition: {error_msg}")
 
 # TODO: Implement the following command
 # @cli.command(help="Update the metadata of the deposition")

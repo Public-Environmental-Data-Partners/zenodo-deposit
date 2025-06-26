@@ -353,7 +353,6 @@ def update_metadata(
     response.raise_for_status()
     return response.json()
 
-
 def delete_deposition(base_url: str, deposition_id: int, params: Dict) -> Dict:
     """
     Delete the Zenodo deposition. Note: published depositions cannot be deleted.
@@ -364,14 +363,18 @@ def delete_deposition(base_url: str, deposition_id: int, params: Dict) -> Dict:
         params (Dict): The parameters for the request, including the access token.
 
     Returns:
-        Dict: The response from the Zenodo API.
+        Dict: Empty dict on success (204), or the API response on error.
+
+    Raises:
+        requests.exceptions.HTTPError: If the API request fails (e.g., 404, 403).
     """
     response = requests.delete(
         f"{base_url}/deposit/depositions/{deposition_id}", params=params
     )
     response.raise_for_status()
+    if response.status_code == 204:
+        return {}
     return response.json()
-
 
 def get_deposition(deposition_id: int, config: Dict, sandbox: bool = True) -> Dict:
     """
