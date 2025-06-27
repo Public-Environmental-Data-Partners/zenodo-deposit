@@ -303,7 +303,7 @@ def create(ctx, title, description, variable, type, keywords, metadata):
         current_keywords = metadata_object.get("keywords", [])
         metadata_object["keywords"] = list(set(current_keywords + list(keywords)))
     if not metadata_object.get("title"):
-        raise click.ClickException("Metadata must include title, either via --title or metadata file")
+        raise click.ClickException("Metadata must include title")
     if not metadata_object.get("creators"):
         raise click.ClickException("Metadata must include creators")
     try:
@@ -358,7 +358,7 @@ def delete(ctx, deposition_id):
     Raises:
         click.ClickException: If the token is missing or the API request fails.
     """
-    logger.debug(f"Deleting deposition: {deposition_id}")
+    logger.info(f"Deleting deposition: {deposition_id}")
     base_url = zenodo_url(ctx.obj["SANDBOX"])
     token = access_token(ctx.obj, ctx.obj["SANDBOX"])
     if not token:
@@ -366,7 +366,7 @@ def delete(ctx, deposition_id):
     params = {"access_token": token}
     try:
         results = zenodo_deposit.api.delete_deposition(base_url, deposition_id, params)
-        logger.debug(f"Successfully deleted deposition with ID: {deposition_id}")
+        logger.info(f"Successfully deleted deposition with ID: {deposition_id}")
         print(json.dumps(results))
     except requests.exceptions.HTTPError as e:
         error_msg = e.response.json().get("message", str(e)) if e.response else str(e)
@@ -394,7 +394,7 @@ def update_metadata(ctx, deposition_id, metadata):
     Raises:
         click.ClickException: If the token is missing, metadata is invalid, or the API request fails.
     """
-    logger.debug(f"Updating metadata for deposition: {deposition_id}")
+    logger.info(f"Updating metadata for deposition: {deposition_id}")
     base_url = zenodo_url(ctx.obj["SANDBOX"])
     token = access_token(ctx.obj, ctx.obj["SANDBOX"])
     if not token:
@@ -407,7 +407,7 @@ def update_metadata(ctx, deposition_id, metadata):
         raise click.ClickException("Metadata must include creators")
     try:
         results = zenodo_deposit.api.update_metadata(base_url, deposition_id, metadata_object, params)
-        logger.debug(f"Metadata updated for deposition ID: {deposition_id}")
+        logger.info(f"Metadata updated for deposition ID: {deposition_id}")
         print(json.dumps(results))
     except requests.exceptions.HTTPError as e:
         error_msg = e.response.json().get("message", str(e)) if e.response else str(e)
@@ -435,7 +435,7 @@ def add_metadata(ctx, deposition_id, metadata):
     Raises:
         click.ClickException: If the token is missing, metadata is invalid, or the API request fails.
     """
-    logger.debug(f"Adding metadata to deposition {deposition_id}")
+    logger.info(f"Adding metadata to deposition {deposition_id}")
     base_url = zenodo_url(ctx.obj["SANDBOX"])
     token = access_token(ctx.obj, ctx.obj["SANDBOX"])
     if not token:
@@ -448,7 +448,7 @@ def add_metadata(ctx, deposition_id, metadata):
         raise click.ClickException("Metadata must include creators")
     try:
         results = zenodo_deposit.api.add_metadata(base_url, deposition_id, metadata_object, params)
-        logger.debug(f"Metadata added to deposition ID: {deposition_id}")
+        logger.info(f"Metadata added to deposition ID: {deposition_id}")
         print(json.dumps(results))
     except requests.exceptions.HTTPError as e:
         error_msg = e.response.json().get("message", str(e)) if e.response else str(e)
@@ -642,7 +642,7 @@ def new_version(ctx, deposition_id, title, description, variable, type, keywords
     """
     if not files:
         raise click.ClickException("At least one file must be specified for new version")
-    logger.debug(f"Creating new version for deposition: {deposition_id}")
+    logger.info(f"Creating new version for deposition: {deposition_id}")
     base_url = zenodo_url(ctx.obj["SANDBOX"])
     token = access_token(ctx.obj, ctx.obj["SANDBOX"])
     if not token:
@@ -723,9 +723,7 @@ def new_version(ctx, deposition_id, title, description, variable, type, keywords
         print(json.dumps(results))
     except requests.exceptions.HTTPError as e:
         error_msg = e.response.json().get("message", str(e)) if e.response else str(e)
-        raise click.ClickException(f"Failed to finalize operation: {error_msg}")
-
-
+        raise click.ClickException(f"Failed tofinalize operation: {error_msg}")
 
 @cli.command(help="Add tags to an existing deposition")
 @click.argument("deposition_id", type=int)
@@ -797,6 +795,7 @@ def search(ctx, query, size, page, sort, status):
     Raises:
         click.ClickException: If the token is missing or the API request fails.
     """
+    logger.info(f"Searching depositions with query: {query}")
     try:
         results = zenodo_deposit.api.search(
             query=query,

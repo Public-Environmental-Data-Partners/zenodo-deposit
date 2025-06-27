@@ -485,7 +485,7 @@ def get_deposition(deposition_id: int, config: Dict = None, sandbox: bool = True
         token = access_token(config, sandbox)
     else:
         token_key = "ZENODO_SANDBOX_ACCESS_TOKEN" if sandbox else "ZENODO_ACCESS_TOKEN"
-        token = params.get(token_key) if params else None
+        token = params.get("access_token") or params.get(token_key) if params else None
         if not token:
             raise ValueError(f"Access token '{token_key}' is missing in the configuration")
     if not params:
@@ -498,7 +498,6 @@ def get_deposition(deposition_id: int, config: Dict = None, sandbox: bool = True
     )
     response.raise_for_status()
     return response.json()
-
 
 def create_new_version(
     base_url: str, deposition_id: int, params: Dict[str, str], config: Dict[str, str], sandbox: bool = True, files_to_add: List[str] = None, zip: bool = False
