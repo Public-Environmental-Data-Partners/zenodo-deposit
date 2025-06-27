@@ -153,7 +153,6 @@ def validate_zenodo_config(config: Dict[str, str], use_sandbox: bool = False) ->
             f"{token_key} is set to default value ('{default_zenodo[token_key]}'). "
             f"Replace with a valid token from {'https://sandbox.zenodo.org/account/settings/tokens/' if use_sandbox else 'https://zenodo.org/account/settings/tokens/'}"
         )
-    # Basic token format validation
     if len(token.strip()) < 32:  # Zenodo tokens are typically long
         raise ValueError(
             f"{token_key} is too short (length: {len(token.strip())}). Expected a valid Zenodo token. "

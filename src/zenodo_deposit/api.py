@@ -126,10 +126,10 @@ def add_url(bucket_url: str, url: str, params: Dict, name: str = None) -> Dict:
     Upload a file from a URL to the Zenodo deposition bucket.
 
     Args:
-        bucket_url: The URL of the deposition bucket.
-        url: The URL to the file to upload.
-        params: Parameters for the request, including the access token.
-        name: The name to save the file as, defaults to the URL's filename.
+        bucket_url (str): The URL of the deposition bucket.
+        url (str): The path to the file to upload.
+        params (Dict): The parameters for the request, including the access token.
+        name (str): The name of the file to save as, defaults to the URL name.
 
     Returns:
         Dict: The response from the Zenodo API.
@@ -161,10 +161,10 @@ def add_file(bucket_url: str, file_path: Path, params: Dict, name: str = None) -
     Upload a single file to the Zenodo deposition bucket.
 
     Args:
-        bucket_url: The URL of the deposition bucket.
-        file_path: The path to the file to upload.
-        params: Parameters for the request, including the access token.
-        name: The name to save the file as, defaults to the file's name.
+        bbucket_url (str): The URL of the deposition bucket.
+        file_path (Path): The path to the file to upload.
+        params (Dict): The parameters for the request, including the access token.
+        name (str): The name of the file to save as, defaults to the file name.
 
     Returns:
         Dict: The response from the Zenodo API.
@@ -556,13 +556,13 @@ def search(
     Search for depositions on Zenodo.
 
     Args:
-        query: The search query.
+        query (str): The search query.
+        config (Dict): The configuration containing the access token.
+        sandbox (bool): If True, use the sandbox environment; otherwise, use production.
         size: Number of results to return.
         status: Filter by deposition status (e.g., 'draft', 'published', 'all').
         sort: Sort order (e.g., 'bestmatch', 'mostrecent').
         page: Page number for pagination.
-        config: Configuration dictionary containing access tokens.
-        sandbox: If True, use the sandbox environment; otherwise, use production.
 
     Returns:
         Dict: The response from the Zenodo API.
