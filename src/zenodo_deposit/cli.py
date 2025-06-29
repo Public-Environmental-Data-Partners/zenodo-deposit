@@ -723,7 +723,7 @@ def new_version(ctx, deposition_id, title, description, variable, type, keywords
         print(json.dumps(results))
     except requests.exceptions.HTTPError as e:
         error_msg = e.response.json().get("message", str(e)) if e.response else str(e)
-        raise click.ClickException(f"Failed tofinalize operation: {error_msg}")
+        raise click.ClickException(f"Failed to finalize operation: {error_msg}")
 
 @cli.command(help="Add tags to an existing deposition")
 @click.argument("deposition_id", type=int)
@@ -811,5 +811,59 @@ def search(ctx, query, size, page, sort, status):
         error_msg = e.response.json().get("message", str(e)) if hasattr(e, 'response') and e.response else str(e)
         raise click.ClickException(f"Failed to search depositions: {error_msg}")
 
+
+@cli.command("add_file", help="Add files to an existing deposition")
+@click.argument("deposition_id", type=int)
+@click.option(
+    "--zip/--no-zip",
+    default=False,
+    is_flag=True,
+    help="Zip directories before uploading",
+)
+@click.argument("files", type=click.Path(exists=True, file_okay=True, dir_okay=True), nargs=-1)
+@click.pass_context
+def add_file(ctx, deposition_id, zip, files):
+    """
+    Add one or more files to an existing Zenodo deposition.
+
+    Args:
+        ctx: The context object containing configuration.
+        deposition_id: The ID of the deposition to add files to.
+        files: List of paths to files to upload.
+        zip: Flag to zip directories before uploading.
+
+    Raises:
+        click.ClickException: If no files are provided, the deposition is not a draft, or the API request fails.
+    """
+    if not files:
+        raise click.ClickException("At least one file must be specified")
+    logger.info(f"Adding files to deposition: {deposition_id}")
+    base_url = zenodo_url(ctx.obj["SANDBOX"])
+    token = access_token(ctx.obj, ctx.obj["SANDBOX"])
+    if not token:
+        raise click.ClickException("Access token missing")
+    params = {"access_token": token}
+    try:
+        deposition = zenodo_deposit.api.get_deposition(deposition_id, ctx.obj, ctx.obj["SANDBOX"])
+        if deposition.get("submitted", False):
+            raise click.ClickException("Cannot add files to a published deposition")
+        bucket_url = deposition["links"]["bucket"]
+        results = []
+        for file_path in files:
+            result = zenodo_deposit.api.add_thing(bucket_url, file_path, params, zip=zip)
+            results.append(result)
+        logger.info(f"Files added to deposition ID: {deposition_id}")
+        print(json.dumps(results))
+    except requests.exceptions.HTTPError as e:
+        error_msg = e.response.json().get("message", str(e)) if e.response else str(e)
+        raise click.ClickException(f"Failed to add files: {error_msg}")
+    if not results:
+        raise click.ClickException("No files were uploaded successfully")  
+    if not bucket_url:
+        raise click.ClickException("Bucket URL not found in deposition metadata")
+    if not isinstance(results, list):
+        raise click.ClickException("Unexpected response format from Zenodo API")
+    
+    
 if __name__ == "__main__":
     cli()

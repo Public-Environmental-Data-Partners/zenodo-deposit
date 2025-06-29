@@ -1,5 +1,5 @@
 import requests
-import json
+import json # noqa: F401
 from typing import Dict, List, Any
 from pathlib import Path
 from urllib.parse import urlparse
@@ -298,38 +298,49 @@ def add_metadata(
     Add metadata to a Zenodo deposition, merging with existing metadata.
 
     Args:
-        base_url (str): The base URL for the Zenodo API.
+        base_url (str): The base Zenodo API URL.
         deposition_id (int): The ID of the deposition.
-        metadata (Dict): The metadata to add to the deposition.
+        metadata (Dict): The new metadata to add to the deposition.
         params (Dict): The parameters for the request, including the access token.
 
     Returns:
-        Dict: The response from the Zenodo API.
+        Dict: The updated deposition data.
+
+    Raises:
+        requests.exceptions.HTTPError: If the API request fails.
     """
-    logger.info(f"Adding metadata to deposition {deposition_id}")
-    logger.debug(f"New metadata: {metadata}")
-    existing_deposition = get_deposition(deposition_id, params=params, base_url=base_url)
-    existing_metadata = existing_deposition.get("metadata", {})
-    merged_metadata = existing_metadata.copy()
+    # Get current metadata
+    response = requests.get(f"{base_url}/deposit/depositions/{deposition_id}", params=params)
+    response.raise_for_status()
+    current_metadata = response.json().get("metadata", {})
+
+    # Merge metadata
+    merged_metadata = current_metadata.copy()
     for key, value in metadata.items():
-        if key in ["keywords", "creators", "contributors"]:
-            existing_list = merged_metadata.get(key, [])
-            new_list = value if isinstance(value, list) else [value]
-            merged_list = existing_list + [item for item in new_list if item not in existing_list]
-            merged_metadata[key] = merged_list
+        if key in ("creators", "keywords", "communities") and isinstance(value, list):
+            # Merge arrays, removing duplicates
+            current_list = current_metadata.get(key, [])
+            if key in ("creators", "communities"):
+                # Merge creators and communities, keeping unique by all fields
+                current_set = {frozenset(item.items()) for item in current_list if isinstance(item, dict)}
+                new_set = {frozenset(item.items()) for item in value if isinstance(item, dict)}
+                merged_set = current_set | new_set
+                merged_metadata[key] = [dict(items) for items in merged_set]
+            else:
+                # Merge keywords (strings)
+                merged_metadata[key] = list(set(current_list + value))
         else:
+            # Overwrite scalar fields
             merged_metadata[key] = value
-    logger.debug(f"Merged metadata: {merged_metadata}")
-    headers = {"Content-Type": "application/json"}
-    data = {"metadata": merged_metadata}
+
+    # Update metadata
     response = requests.put(
         f"{base_url}/deposit/depositions/{deposition_id}",
         params=params,
-        data=json.dumps(data),
-        headers=headers,
+        json={"metadata": merged_metadata}
     )
     response.raise_for_status()
-    logger.debug(f"Response: {response.status_code} {response.json()}")
+    logger.debug(f"Metadata merged for deposition {deposition_id}: {merged_metadata}")
     return response.json()
 
 
