@@ -220,6 +220,7 @@ def deposit(ctx, title, type, keywords, name, affiliation, metadata):
         metadata_object = zenodo_deposit.metadata.metadata_from_toml(metadata, ctx.obj)
         ctx.obj["metadata"] = metadata_object
 
+
 @cli.command(help="Create a new deposition without uploading a file")
 @click.option("--title", required=False, help="Title of the deposition (overrides metadata)")
 @click.option("--description", required=False, default="", help="Description of the deposition")
@@ -316,6 +317,7 @@ def create(ctx, title, description, variable, type, keywords, metadata):
         error_msg = e.response.json().get("message", str(e)) if e.response else str(e)
         raise click.ClickException(f"Failed to create deposition: {error_msg}")
 
+
 @cli.command(help="Publish an existing deposition")
 @click.argument("deposition_id", type=int)
 @click.pass_context
@@ -343,6 +345,7 @@ def publish(ctx, deposition_id):
     except requests.exceptions.HTTPError as e:
         error_msg = e.response.json().get("message", str(e)) if e.response else str(e)
         raise click.ClickException(f"Failed to publish: {error_msg}")
+
 
 @cli.command(help="Delete a draft deposition")
 @click.argument("deposition_id", type=int)
@@ -372,6 +375,7 @@ def delete(ctx, deposition_id):
         error_msg = e.response.json().get("message", str(e)) if e.response else str(e)
         raise click.ClickException(f"Failed to delete: {error_msg}")
 
+
 @cli.command("update_metadata", help="Update metadata for an existing deposition")
 @click.argument("deposition_id", type=int)
 @click.option(
@@ -381,8 +385,14 @@ def delete(ctx, deposition_id):
     help="Path to metadata file",
     type=click.Path(exists=True),
 )
+@click.option(
+    "--variable",
+    "-v",
+    multiple=True,
+    help="Variables for metadata, format: key=value or key:val",
+)
 @click.pass_context
-def update_metadata(ctx, deposition_id, metadata):
+def update_metadata(ctx, deposition_id, metadata, variable):
     """
     Update metadata for a Zenodo deposition by ID, overwriting existing metadata.
 
@@ -390,28 +400,46 @@ def update_metadata(ctx, deposition_id, metadata):
         ctx: The context object containing configuration.
         deposition_id: The ID of the deposition to update.
         metadata: Path to the metadata TOML file.
+        variable: List of key=value or key:val pairs for metadata substitution.
 
     Raises:
         click.ClickException: If the token is missing, metadata is invalid, or the API request fails.
     """
     logger.info(f"Updating metadata for deposition: {deposition_id}")
-    base_url = zenodo_url(ctx.obj["SANDBOX"])
     token = access_token(ctx.obj, ctx.obj["SANDBOX"])
     if not token:
-        raise click.ClickException("Token missing")
+        raise click.ClickException("Access token missing")
     params = {"access_token": token}
-    metadata_object = zenodo_deposit.metadata.metadata_from_toml(metadata, ctx.obj)
-    if not metadata_object.get("title"):
-        raise click.ClickException("Metadata must include title")
-    if not metadata_object.get("creators"):
-        raise click.ClickException("Metadata must include creators")
     try:
-        results = zenodo_deposit.api.update_metadata(base_url, deposition_id, metadata_object, params)
+        # Parse variables into ctx.obj
+        for var in variable:
+            if '=' in var:
+                key, value = var.split("=", 1)
+            elif ':' in var:
+                key, value = var.split(":", 1)
+            else:
+                raise ValueError(f"Invalid variable format: {var}")
+            logger.debug(f"Variable {key} = {value}")
+            ctx.obj[key] = value
+        # Load metadata from TOML file
+        metadata_object = zenodo_deposit.metadata.metadata_from_toml(metadata, ctx.obj)
+        # Validate metadata
+        if not metadata_object.get("title"):
+            raise click.ClickException("Metadata must include title")
+        if not metadata_object.get("creators"):
+            raise click.ClickException("Metadata must include creators")
+        if not metadata_object.get("upload_type"):
+            raise click.ClickException("Metadata must include upload_type")
+        # Update metadata via API
+        results = zenodo_deposit.api.update_metadata(deposition_id, metadata_object, params, ctx.obj["SANDBOX"])
         logger.info(f"Metadata updated for deposition ID: {deposition_id}")
         print(json.dumps(results))
+    except ValueError as e:
+        raise click.ClickException(f"Invalid metadata or variable format: {str(e)}")
     except requests.exceptions.HTTPError as e:
         error_msg = e.response.json().get("message", str(e)) if e.response else str(e)
         raise click.ClickException(f"Failed to update metadata: {error_msg}")
+
 
 @cli.command("add_metadata", help="Add metadata to an existing deposition, without overwriting existing metadata")
 @click.argument("deposition_id", type=int)
@@ -422,8 +450,14 @@ def update_metadata(ctx, deposition_id, metadata):
     help="Path to metadata file",
     type=click.Path(exists=True),
 )
+@click.option(
+    "--variable",
+    "-v",
+    multiple=True,
+    help="Variables for metadata, format: key=value or key:val",
+)
 @click.pass_context
-def add_metadata(ctx, deposition_id, metadata):
+def add_metadata(ctx, deposition_id, metadata, variable):
     """
     Add metadata to a Zenodo deposition by ID, merging with existing metadata.
 
@@ -431,28 +465,50 @@ def add_metadata(ctx, deposition_id, metadata):
         ctx: The context object containing configuration.
         deposition_id: The ID of the deposition to update.
         metadata: Path to the metadata TOML file.
+        variable: List of key=value or key:val pairs for metadata substitution.
 
     Raises:
         click.ClickException: If the token is missing, metadata is invalid, or the API request fails.
     """
-    logger.info(f"Adding metadata to deposition {deposition_id}")
-    base_url = zenodo_url(ctx.obj["SANDBOX"])
+    logger.info(f"Adding metadata to deposition: {deposition_id}")
     token = access_token(ctx.obj, ctx.obj["SANDBOX"])
     if not token:
         raise click.ClickException("Access token missing")
     params = {"access_token": token}
-    metadata_object = zenodo_deposit.metadata.metadata_from_toml(metadata, ctx.obj)
-    if not metadata_object.get("title"):
-        raise click.ClickException("Metadata must include title")
-    if not metadata_object.get("creators"):
-        raise click.ClickException("Metadata must include creators")
     try:
-        results = zenodo_deposit.api.add_metadata(base_url, deposition_id, metadata_object, params)
+        # Parse variables into ctx.obj
+        for var in variable:
+            if '=' in var:
+                key, value = var.split("=", 1)
+            elif ':' in var:
+                key, value = var.split(":", 1)
+            else:
+                raise ValueError(f"Invalid variable format: {var}")
+            logger.debug(f"Variable {key} = {value}")
+            ctx.obj[key] = value
+        # Fetch existing deposition metadata
+        base_deposition = zenodo_deposit.api.get_deposition(deposition_id, ctx.obj, ctx.obj["SANDBOX"])
+        metadata_object = base_deposition.get("metadata", {}).copy()
+        # Load and merge new metadata from TOML file
+        new_metadata = zenodo_deposit.metadata.metadata_from_toml(metadata, ctx.obj)
+        metadata_object.update(new_metadata)
+        # Validate metadata
+        if not metadata_object.get("title"):
+            raise click.ClickException("Metadata must include title")
+        if not metadata_object.get("creators"):
+            raise click.ClickException("Metadata must include creators")
+        if not metadata_object.get("upload_type"):
+            raise click.ClickException("Metadata must include upload_type")
+        # Add metadata via API
+        results = zenodo_deposit.api.add_metadata(deposition_id, metadata_object, params, ctx.obj["SANDBOX"])
         logger.info(f"Metadata added to deposition ID: {deposition_id}")
         print(json.dumps(results))
+    except ValueError as e:
+        raise click.ClickException(f"Invalid metadata or variable format: {str(e)}")
     except requests.exceptions.HTTPError as e:
         error_msg = e.response.json().get("message", str(e)) if e.response else str(e)
         raise click.ClickException(f"Failed to add metadata: {error_msg}")
+    
 
 @cli.command(help="Upload one or more files, creating a new deposition with metadata")
 @click.option("--title", required=False, help="Title of the deposition")
@@ -544,6 +600,7 @@ def upload(ctx, title, description, variable, type, keywords, metadata, publish,
     logger.debug(f"Type: {type}")
     logger.debug(f"Keywords: {keywords}")
     metadata_object = zenodo_deposit.metadata.metadata_from_toml(metadata, ctx.obj)
+    
     if title:
         metadata_object["title"] = title
     if description:
@@ -838,7 +895,6 @@ def add_file(ctx, deposition_id, zip, files):
     if not files:
         raise click.ClickException("At least one file must be specified")
     logger.info(f"Adding files to deposition: {deposition_id}")
-    base_url = zenodo_url(ctx.obj["SANDBOX"])
     token = access_token(ctx.obj, ctx.obj["SANDBOX"])
     if not token:
         raise click.ClickException("Access token missing")

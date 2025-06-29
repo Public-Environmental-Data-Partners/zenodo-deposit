@@ -1,5 +1,5 @@
 import requests
-import json # noqa: F401
+import json  # noqa: F401
 from typing import Dict, List, Any
 from pathlib import Path
 from urllib.parse import urlparse
@@ -10,7 +10,6 @@ import tempfile
 import re
 
 logger = logging.getLogger(__name__)
-
 
 def valid_url(url: str) -> bool:
     """
@@ -49,7 +48,6 @@ def file_list(path: str) -> List[Path]:
         return [path]
     return [f for f in Path(path).rglob("*") if f.is_file()]
 
-
 def zenodo_url(sandbox: bool = True) -> str:
     """
     Get the base URL for the Zenodo API.
@@ -61,7 +59,6 @@ def zenodo_url(sandbox: bool = True) -> str:
         str: The base URL for the Zenodo API.
     """
     return "https://sandbox.zenodo.org/api" if sandbox else "https://zenodo.org/api"
-
 
 def access_token(config: Dict, sandbox: bool = True) -> str:
     """
@@ -81,7 +78,6 @@ def access_token(config: Dict, sandbox: bool = True) -> str:
     token = config.get(token_key)
     if not token:
         raise ValueError(f"Access token '{token_key}' is missing in the configuration")
-    # Validate token with a lightweight request
     try:
         response = requests.get(f"{zenodo_url(sandbox)}/deposit/depositions", params={"access_token": token})
         if response.status_code == 403:
@@ -114,12 +110,12 @@ def create_deposition(base_url: str, params: Dict) -> Dict:
         response.raise_for_status()
     return response.json()
 
-
 @backoff.on_exception(
     backoff.expo,
     requests.exceptions.RequestException,
-    max_tries=5,
-    giveup=lambda e: e.response is not None and e.response.status_code < 500,
+    max_tries=8,
+    max_time=300,
+    giveup=lambda e: e.response is not None and e.response.status_code < 500
 )
 def add_url(bucket_url: str, url: str, params: Dict, name: str = None) -> Dict:
     """
@@ -153,15 +149,16 @@ def add_url(bucket_url: str, url: str, params: Dict, name: str = None) -> Dict:
 @backoff.on_exception(
     backoff.expo,
     requests.exceptions.RequestException,
-    max_tries=5,
-    giveup=lambda e: e.response is not None and e.response.status_code < 500,
+    max_tries=8,
+    max_time=300,
+    giveup=lambda e: e.response is not None and e.response.status_code < 500
 )
 def add_file(bucket_url: str, file_path: Path, params: Dict, name: str = None) -> Dict:
     """
     Upload a single file to the Zenodo deposition bucket.
 
     Args:
-        bbucket_url (str): The URL of the deposition bucket.
+        bucket_url (str): The URL of the deposition bucket.
         file_path (Path): The path to the file to upload.
         params (Dict): The parameters for the request, including the access token.
         name (str): The name of the file to save as, defaults to the file name.
@@ -182,6 +179,13 @@ def add_file(bucket_url: str, file_path: Path, params: Dict, name: str = None) -
     response.raise_for_status()
     return response.json()
 
+@backoff.on_exception(
+    backoff.expo,
+    requests.exceptions.RequestException,
+    max_tries=8,
+    max_time=300,
+    giveup=lambda e: e.response is not None and e.response.status_code < 500
+)
 def add_directory(bucket_url: str, directory: str, params: Dict, names: List[str] = []) -> List[Dict]:
     """
     Upload all files in a directory to the Zenodo deposition bucket.
@@ -206,7 +210,6 @@ def add_directory(bucket_url: str, directory: str, params: Dict, names: List[str
     files = file_list(directory)
     if len(names) < len(files):
         names += [None] * (len(files) - len(names))
-
     if len(files) > 100:
         logger.warning("Uploading more than 100 files. Zipping the directory.")
         return [add_zipped_directory(bucket_url, directory, params)]
@@ -214,7 +217,6 @@ def add_directory(bucket_url: str, directory: str, params: Dict, names: List[str
     for file, name in zip(files, names):
         responses.append(add_file(bucket_url, file, params, name))
     return responses
-
 
 def add_zipped_directory(
     bucket_url: str, directory: str, params: Dict, name: str = None
@@ -253,7 +255,6 @@ def add_zipped_directory(
         temp_filename.unlink()
     return result
 
-
 def add_thing(
     bucket_url: str, thing: str, params: Dict, name: str = None, zip: bool = False
 ) -> Dict:
@@ -290,59 +291,89 @@ def add_thing(
         f"Do not know how to deposit {thing}. Must be a file, URL, or directory."
     )
 
-
 def add_metadata(
-    base_url: str, deposition_id: int, metadata: Dict, params: Dict
+    deposition_id: int, metadata_dict: Dict, params: Dict, sandbox: bool
 ) -> Dict:
     """
-    Add metadata to a Zenodo deposition, merging with existing metadata.
+    Add metadata to a Zenodo deposition, merging with existing metadata without overwriting unspecified fields.
 
     Args:
-        base_url (str): The base Zenodo API URL.
         deposition_id (int): The ID of the deposition.
-        metadata (Dict): The new metadata to add to the deposition.
+        metadata_dict (Dict): The new metadata to add to the deposition.
         params (Dict): The parameters for the request, including the access token.
+        sandbox (bool): Whether to use the Zenodo sandbox or production environment.
 
     Returns:
         Dict: The updated deposition data.
 
     Raises:
         requests.exceptions.HTTPError: If the API request fails.
+        ValueError: If the deposition is already published or metadata is invalid.
     """
-    # Get current metadata
-    response = requests.get(f"{base_url}/deposit/depositions/{deposition_id}", params=params)
-    response.raise_for_status()
-    current_metadata = response.json().get("metadata", {})
-
-    # Merge metadata
-    merged_metadata = current_metadata.copy()
-    for key, value in metadata.items():
-        if key in ("creators", "keywords", "communities") and isinstance(value, list):
-            # Merge arrays, removing duplicates
-            current_list = current_metadata.get(key, [])
-            if key in ("creators", "communities"):
-                # Merge creators and communities, keeping unique by all fields
-                current_set = {frozenset(item.items()) for item in current_list if isinstance(item, dict)}
-                new_set = {frozenset(item.items()) for item in value if isinstance(item, dict)}
-                merged_set = current_set | new_set
-                merged_metadata[key] = [dict(items) for items in merged_set]
-            else:
-                # Merge keywords (strings)
-                merged_metadata[key] = list(set(current_list + value))
-        else:
-            # Overwrite scalar fields
-            merged_metadata[key] = value
-
-    # Update metadata
-    response = requests.put(
-        f"{base_url}/deposit/depositions/{deposition_id}",
-        params=params,
-        json={"metadata": merged_metadata}
-    )
-    response.raise_for_status()
-    logger.debug(f"Metadata merged for deposition {deposition_id}: {merged_metadata}")
-    return response.json()
-
+    logger.debug(f"Adding metadata to deposition {deposition_id}")
+    base_url = zenodo_url(sandbox)
+    try:
+        # Fetch current deposition metadata
+        response = requests.get(f"{base_url}/deposit/depositions/{deposition_id}", params=params)
+        response.raise_for_status()
+        deposition = response.json()
+        if deposition.get("submitted", False):
+            raise ValueError("Cannot add metadata to a published deposition")
+        
+        # Get existing metadata
+        existing_metadata = deposition.get("metadata", {})
+        
+        # Handle specific fields for merging
+        updated_metadata = existing_metadata.copy()
+        
+        # Merge simple fields (e.g., title, description, upload_type)
+        for key, value in metadata_dict.items():
+            if key not in ["creators", "keywords", "communities"]:  # Handle non-list fields
+                updated_metadata[key] = value
+        
+        # Merge list fields (creators, keywords, communities)
+        if "creators" in metadata_dict:
+            existing_creators = updated_metadata.get("creators", [])
+            new_creators = metadata_dict["creators"]
+            # Append new creators, avoiding duplicates based on ORCID or name
+            seen = {c.get("orcid", c.get("name", "")) for c in existing_creators}
+            for creator in new_creators:
+                identifier = creator.get("orcid", creator.get("name", ""))
+                if identifier and identifier not in seen:
+                    existing_creators.append(creator)
+                    seen.add(identifier)
+            updated_metadata["creators"] = existing_creators
+        
+        if "keywords" in metadata_dict:
+            existing_keywords = updated_metadata.get("keywords", [])
+            new_keywords = metadata_dict["keywords"]
+            # Append new keywords, avoiding duplicates
+            updated_metadata["keywords"] = list(set(existing_keywords + new_keywords))
+        
+        if "communities" in metadata_dict:
+            existing_communities = updated_metadata.get("communities", [])
+            new_communities = metadata_dict["communities"]
+            # Append new communities, avoiding duplicates based on identifier
+            seen = {c.get("identifier", "") for c in existing_communities}
+            for community in new_communities:
+                identifier = community.get("identifier", "")
+                if identifier and identifier not in seen:
+                    existing_communities.append(community)
+                    seen.add(identifier)
+            updated_metadata["communities"] = existing_communities
+        
+        # Send updated metadata to Zenodo
+        response = requests.put(
+            f"{base_url}/deposit/depositions/{deposition_id}",
+            params=params,
+            json={"metadata": updated_metadata}
+        )
+        response.raise_for_status()
+        logger.debug(f"Metadata merged for deposition {deposition_id}: {updated_metadata}")
+        return response.json()
+    except requests.exceptions.HTTPError as e:
+        logger.error(f"Failed to add metadata: {str(e)}")
+        raise
 
 def publish_deposition(base_url: str, deposition_id: int, params: Dict) -> Dict:
     """
@@ -365,7 +396,6 @@ def publish_deposition(base_url: str, deposition_id: int, params: Dict) -> Dict:
     response.raise_for_status()
     return response.json()
 
-
 def upload(
     paths: List[str],
     metadata: Dict,
@@ -381,9 +411,8 @@ def upload(
     Args:
         paths: List of paths to files, URLs, or directories to upload.
         metadata (Dict): The metadata for the upload.
-        name (str): The name of the file to save as, defaults to the file name. Only
-        works well if it is a single file or URL
         config (Dict): The configuration containing the access token.
+        name (str): The name of the file to save as, defaults to the file name.
         sandbox (bool): If True, use the sandbox environment; otherwise, use production.
         publish (bool): If True, publish the deposition after uploading.
         zip (bool): If True, zip directories before uploading.
@@ -400,53 +429,54 @@ def upload(
     token = access_token(config, sandbox)
     base_url = zenodo_url(sandbox)
     params = {"access_token": token}
-
-    # Step 1: Create a new deposition
     deposition = create_deposition(base_url, params)
     deposition_id = deposition["id"]
     bucket_url = deposition["links"]["bucket"]
-
-    # Step 2: Add metadata (in case file upload fails)
-    add_metadata(base_url, deposition_id, metadata, params)
-
-    # Step 3: Upload the files
+    add_metadata(deposition_id, metadata, params, sandbox)
     for path in paths:
         add_thing(bucket_url, path, params, name, zip)
-    
-    # Step 4: Publish the deposition, possibly
     if publish:
         return publish_deposition(base_url, deposition_id, params)
     return deposition
 
 def update_metadata(
-        base_url: str, deposition_id: int, metadata: Dict, params: Dict
+    deposition_id: int, metadata_dict: Dict, params: Dict, sandbox: bool
 ) -> Dict:
     """
     Update metadata of the Zenodo deposition.
 
     Args:
-        base_url (str): The base URL for the Zenodo API.
         deposition_id (int): The ID of the deposition.
-        metadata (Dict): The metadata to update in the deposition.
+        metadata_dict (Dict): The metadata to update in the deposition.
         params (Dict): The parameters for the request, including the access token.
+        sandbox (bool): Whether to use the Zenodo sandbox or production environment.
 
     Returns:
         Dict: The updated deposition details.
 
     Raises:
         requests.exceptions.HTTPError: If the API request fails.
+        ValueError: If the deposition is already published.
     """
     logger.info(f"Updating metadata for deposition {deposition_id}")
-    headers = {"Content-Type": "application/json"}
-    response = requests.put(
-        f"{base_url}/deposit/depositions/{deposition_id}",
-        params=params,
-        json={"metadata": metadata},
-        headers=headers,
-    )
-    logger.debug(f"Response: {response.status_code} {response.json()}")
-    response.raise_for_status()
-    return response.json()
+    base_url = zenodo_url(sandbox)
+    try:
+        response = requests.get(f"{base_url}/deposit/depositions/{deposition_id}", params=params)
+        response.raise_for_status()
+        deposition = response.json()
+        if deposition.get("submitted", False):
+            raise ValueError("Cannot update metadata of a published deposition")
+        response = requests.put(
+            f"{base_url}/deposit/depositions/{deposition_id}",
+            params=params,
+            json={"metadata": metadata_dict}
+        )
+        response.raise_for_status()
+        logger.debug(f"Metadata updated for deposition {deposition_id}: {metadata_dict}")
+        return response.json()
+    except requests.exceptions.HTTPError as e:
+        logger.error(f"Failed to update metadata: {str(e)}")
+        raise
 
 def delete_deposition(base_url: str, deposition_id: int, params: Dict) -> Dict:
     """
@@ -470,7 +500,6 @@ def delete_deposition(base_url: str, deposition_id: int, params: Dict) -> Dict:
     if response.status_code == 204:
         return {}
     return response.json()
-
 
 def get_deposition(deposition_id: int, config: Dict = None, sandbox: bool = True, base_url: str = None, params: Dict = None) -> Dict:
     """
