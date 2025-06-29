@@ -1,6 +1,6 @@
 import pytest
 import os
-from unittest.mock import patch
+from unittest.mock import patch, call
 from zenodo_deposit.api import (
     create_deposition,
     add_file,
@@ -102,7 +102,7 @@ def test_add_metadata(base_url, config, deposition_response):
             {"name": "Existing, User", "affiliation": "EDGI"},
             {"name": "Doe, John", "affiliation": "Zenodo"},
         ],
-        "keywords": ["existing", "keyword", "new"],  # Order doesn't matter here
+        "keywords": ["existing", "keyword", "new"],
         "communities": [{"identifier": "existing"}, {"identifier": "edgi"}],
     }
 
@@ -114,14 +114,7 @@ def test_add_metadata(base_url, config, deposition_response):
                 "status_code": 200,
                 "json": lambda self: {
                     "id": deposition_id,
-                    "metadata": {
-                        "title": "Existing Title",
-                        "upload_type": "dataset",
-                        "description": "Existing description",
-                        "creators": [{"name": "Existing, User", "affiliation": "EDGI"}],
-                        "keywords": ["existing", "keyword"],
-                        "communities": [{"identifier": "existing"}],
-                    },
+                    "metadata": deposition_response["metadata"],
                     "submitted": False,
                 },
                 "raise_for_status": lambda self: None,
@@ -145,7 +138,6 @@ def test_add_metadata(base_url, config, deposition_response):
 
         response = add_metadata(deposition_id, metadata, {"access_token": config["ZENODO_SANDBOX_ACCESS_TOKEN"]}, sandbox)
         
-        # Sort keywords in both response and expected metadata for comparison
         response["metadata"]["keywords"] = sorted(response["metadata"]["keywords"])
         expected_metadata["keywords"] = sorted(expected_metadata["keywords"])
         
@@ -154,15 +146,11 @@ def test_add_metadata(base_url, config, deposition_response):
             f"{base_url}/deposit/depositions/{deposition_id}",
             params={"access_token": config["ZENODO_SANDBOX_ACCESS_TOKEN"]}
         )
-        
-        # Sort keywords in the expected JSON for the PUT call assertion
-        expected_json = {"metadata": {**expected_metadata, "keywords": sorted(expected_metadata["keywords"])}}
-        
-        # Sort keywords in the actual PUT call JSON before asserting
+
+        expected_json = {"metadata": {**expected_metadata}}
         actual_call = mock_put.call_args
         actual_json = actual_call[1]["json"]
         actual_json["metadata"]["keywords"] = sorted(actual_json["metadata"]["keywords"])
-        
         assert actual_call == call(
             f"{base_url}/deposit/depositions/{deposition_id}",
             params={"access_token": config["ZENODO_SANDBOX_ACCESS_TOKEN"]},
@@ -199,11 +187,7 @@ def test_update_metadata(base_url, config, deposition_response):
                 "status_code": 200,
                 "json": lambda self: {
                     "id": deposition_id,
-                    "metadata": {
-                        "title": "Existing Title",
-                        "upload_type": "dataset",
-                        "description": "Existing description",
-                    },
+                    "metadata": deposition_response["metadata"],
                     "submitted": False,
                 },
                 "raise_for_status": lambda self: None,
