@@ -32,6 +32,32 @@ or
 $ uv tool install zenodo-deposit
 ```
 
+## Configuration
+
+Zenodo requires an API token to make the calls to create deposits. You can create one here:
+
+[https://zenodo.org/account/settings/applications/tokens/new/](https://zenodo.org/account/settings/applications/tokens/new/)
+
+The token should be given both **`publish`** and **`write`** scope (although one or the other may be fine
+for your specific purposes).
+
+It can be useful to use the Zenodo sandbox to test your processes ahead of time. You will
+need a separate user id and API token for the sandbox. You can create an API key here:
+
+[https://sandbox.zenodo.org/account/settings/applications/tokens/new/](https://sandbox.zenodo.org/account/settings/applications/tokens/new/)
+
+The API keys need to go into a `.toml` file. It needs to look like this, replacing the values below
+with the tokens created above. 
+
+```toml
+[zenodo]
+ZENODO_ACCESS_TOKEN = 'your-production-token'
+ZENODO_SANDBOX_ACCESS_TOKEN = 'your-sandbox-token'
+```
+
+Saving this as a file named `.zenodo-deposit-settings.toml` in your home directory will mean
+you will not have to specify the configuration file each time you use it.
+
 ## Usage
 
 ```bash
