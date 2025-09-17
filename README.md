@@ -32,7 +32,7 @@ or
 $ uv tool install zenodo-deposit
 ```
 
-## Configuration
+## Configuration (API Tokens)
 
 Zenodo requires an API token to make the calls to create deposits. You can create one here:
 
@@ -57,6 +57,16 @@ ZENODO_SANDBOX_ACCESS_TOKEN = 'your-sandbox-token'
 
 Saving this as a file named `.zenodo-deposit-settings.toml` in your home directory will mean
 you will not have to specify the configuration file each time you use it.
+
+## Configuration (Metadata details)
+
+Most `zd` subcommands require a metadata file. An example file is given at:
+
+[https://github.com/Public-Environmental-Data-Partners/zenodo-deposit/blob/main/metadata_sample.toml](https://github.com/Public-Environmental-Data-Partners/zenodo-deposit/blob/main/metadata_sample.toml)
+
+Values for the metadata are described in the file. The example given at the bottom of this file shows how to use 
+the basie metadata file to, from the command line, define the deposit's title, type, keywords, etc. But
+you may want to file these out for a specific use.
 
 ## Usage
 
